@@ -21,7 +21,7 @@ class CPU{
             REL,        // Relative
             ZPG,        // Zeropage
             ZPGX,       // Zeropage, X-indexed
-            XPGY        // Zeropage, Y-indexed
+            ZPGY        // Zeropage, Y-indexed
         };
 
         enum CPU_INSTR : uint8_t{
@@ -360,7 +360,7 @@ class CPU{
         uint8_t status_as_int(); // returns the packed status register
 
         uint8_t fetch_instruction();
-        void execute_instruction();
+        void execute_instruction(uint8_t instruction);
 
         enum CPU_ADDRESSING_MODE addr_mode;
         void        set_addr_mode(enum CPU_ADDRESSING_MODE mode);
@@ -374,7 +374,8 @@ class CPU{
         // see https://web.archive.org/web/20200129081101/http://users.telenet.be:80/kim1-6502/6502/proman.html
         // for power-up sequence details
         void power_up();
-        void reset();
+        void engage_reset();
+        void release_reset();
 
         void        write_nmi_vec(uint16_t data);
         uint16_t    read_nmi_vec();
@@ -383,9 +384,7 @@ class CPU{
         void        write_brk_vec(uint16_t data);
         uint16_t    read_brk_vec();
 
-        /* 
-         * INSTRUCTIONS
-         */
+        /* INSTRUCTIONS */
         /* Load/Store */
         void LDA();     // Load Accumulator 	N,Z
         void LDX(); 	// Load X Register 	    N,Z
