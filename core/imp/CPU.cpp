@@ -3,7 +3,113 @@
 #include <iostream>
 #include "../CPU.hpp"
 #include "../../common/nes_assert.hpp"
+#include "../../common/log.hpp"
 
+CPU::CPU(RAM& _ram): ram {_ram}{
+    VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::INFO, "Constructing CPU...");
+}
+
+inline uint8_t CPU::fetch_instruction(){
+    return read_mem(program_counter);
+}
+
+inline void CPU::set_addr_mode(enum CPU_ADDRESSING_MODE mode){
+    addr_mode = mode;
+}
+
+inline uint8_t CPU::read_mem(uint16_t addr){
+    return ram.read(addr);
+}
+
+inline void CPU::write_mem(uint16_t addr, uint8_t data){
+    ram.write(addr, data);
+}
+
+uint8_t CPU::status_as_int(){ 
+    VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented right!");
+    uint8_t status = 0b00010000; // bit 5 is always 1
+    if(carry)               status |= 0b10000000;
+    if(zero)                status |= 0b01000000;
+    if(interrupt_disable)   status |= 0b00100000;
+    if(b_flag)              status |= 0b00001000;
+    if(decimal)             status |= 0b00000100;
+    if(overflow)            status |= 0b00000010;
+    if(negative)            status |= 0b00000001;
+    return status;
+}
+
+// TODO: verify that page wrapping / page crossing is implemented correctly
+uint16_t CPU::fetch_address(){
+    using namespace VNES_LOG;
+    uint16_t addr = 0;
+    uint8_t zpg_ptr = 0; // a pointer into the zero page is sometimes needed
+    switch(addr_mode){
+        case ACC:
+            addr = 0; // The accumulator is not in RAM.
+                      // Instructions which work on the accumulator should not attempt to
+                      // access RAM
+            log(__FILE__, __LINE__, WARN, "Tried to fetch address while in Accumulator mode. This attempt shouldn't happen!\n");
+			break;
+		case ABS:
+            // ABS has low, then high byte of programmer's desired address at PC+1 and PC+2
+            addr |= read_mem(++program_counter);
+            addr |= (read_mem(++program_counter) << 8);
+			break;
+		case ABSX:
+            addr |= read_mem(++program_counter);
+            addr |= (read_mem(++program_counter) << 8);
+            addr += index_X;
+			break;
+		case ABSY:
+            addr |= read_mem(++program_counter);
+            addr |= (read_mem(++program_counter) << 8);
+            addr += index_Y;
+			break;
+		case IMM:
+            addr = ++program_counter;
+			break;
+		case IMPL:
+            addr = 0; // Implicit addressing never needs to fetch an address
+            log(__FILE__, __LINE__, INFO, "Tried to fetch address while in Implicit mode. This is usually alright!\n");
+			break;
+		case IND:
+            zpg_ptr = read_mem(++program_counter);
+            addr |= read_mem(zpg_ptr);
+            addr |= (read_mem(++zpg_ptr) << 8);
+			break;
+		case XIND:
+            zpg_ptr = read_mem(++program_counter);
+            zpg_ptr += index_X;
+            addr |= read_mem(zpg_ptr);
+            addr |= (read_mem(++zpg_ptr) << 8);
+			break;
+		case INDY:
+            zpg_ptr = read_mem(++program_counter);
+            zpg_ptr += index_Y;
+            addr |= read_mem(zpg_ptr);
+            addr |= (read_mem(++zpg_ptr) << 8);
+			break;
+		case REL:
+            addr = ++program_counter;
+			break;
+		case ZPG:
+            addr |= read_mem(++program_counter);
+			break;
+		case ZPGX:
+            addr |= read_mem(++program_counter);
+            addr += index_X;
+			break;
+		case ZPGY:
+            addr |= read_mem(++program_counter);
+            addr += index_Y;
+			break;
+        default:
+            log(__FILE__, __LINE__, FATAL, "Tried to fetch address with bad addressing mode! Bad mode was %c", addr_mode);
+            VNES_ASSERT(0 && "Unreachable");
+            break;
+    }
+    return addr;
+}
 
 void CPU::execute_instruction(uint8_t instruction){
     switch(instruction){
@@ -462,7 +568,7 @@ void CPU::execute_instruction(uint8_t instruction){
             break;
         case ASL_ACC: 	    
             addr_mode = ACC;
-            ASL();
+            ASL_eACC();
             break;
         case ASL_ABS: 	    
             addr_mode = ABS;
@@ -482,7 +588,7 @@ void CPU::execute_instruction(uint8_t instruction){
             break;
         case LSR_ACC: 	    
             addr_mode = ACC;
-            LSR();
+            LSR_eACC();
             break;
         case LSR_ABS: 	    
             addr_mode = ABS;
@@ -502,7 +608,7 @@ void CPU::execute_instruction(uint8_t instruction){
             break;
         case ROL_ACC: 	    
             addr_mode = ACC;
-            ROL();
+            ROL_eACC();
             break;
         case ROL_ABS: 	    
             addr_mode = ABS;
@@ -522,7 +628,7 @@ void CPU::execute_instruction(uint8_t instruction){
             break;
         case ROR_ACC: 	    
             addr_mode = ACC;
-            ROR();
+            ROR_eACC();
             break;
         case ROR_ABS: 	    
             addr_mode = ABS;
@@ -866,344 +972,359 @@ void CPU::execute_instruction(uint8_t instruction){
         case USBC_IMM_ILL:
             break;
         default:
-            std::cout << "ERROR: Got unreachable instruction! How is this possible??? Bad instruction was " << instruction << std::endl;
-            assert(0 && "unreachable");
+            VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::FATAL, "Got unreachable instruction! How is this possible??? Bad instruction was %s\n", instruction);
             break;
     }
 } // execute_instruction
 
 
-        void LDA(){
+        void CPU::LDA(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
      
-        void LDX(){
+        void CPU::LDX(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
  	
-        void LDY(){
+        void CPU::LDY(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
  	
-        void STA(){
+        void CPU::STA(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
  	
-        void STX(){
+        void CPU::STX(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
  	
-        void STY(){
+        void CPU::STY(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
      
 
         /* Register Transfers */
-        void TAX(){
+        void CPU::TAX(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
  
-        void TAY(){
+        void CPU::TAY(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
  
-        void TXA(){
+        void CPU::TXA(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
  
-        void TYA(){
+        void CPU::TYA(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
  
 
         /* Stack Operations */
-        void TSX(){
+        void CPU::TSX(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void TXS(){
+        void CPU::TXS(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void PHA(){
+        void CPU::PHA(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void PHP(){
+        void CPU::PHP(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void PLA(){
+        void CPU::PLA(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void PLP(){
+        void CPU::PLP(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
 
         /* Logical */
-        void AND(){
+        void CPU::AND(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void EOR(){
+        void CPU::EOR(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void ORA(){
+        void CPU::ORA(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void BIT(){
+        void CPU::BIT(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
 
         /* Arithmetic */
-        void ADC(){
+        void CPU::ADC(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void SBC(){
+        void CPU::SBC(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void CMP(){
+        void CPU::CMP(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void CPX(){
+        void CPU::CPX(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void CPY(){
+        void CPU::CPY(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
 
         /* Increments & Decrements */
-        void INC(){
+        void CPU::INC(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void INX(){
+        void CPU::INX(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void INY(){
+        void CPU::INY(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void DEC(){
+        void CPU::DEC(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void DEX(){
+        void CPU::DEX(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void DEY(){
+        void CPU::DEY(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
 
         /* Shifts */
-        void ASL(){
+        void CPU::ASL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void LSR(){
+        void CPU::ASL_eACC(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void ROL(){
+        void CPU::LSR(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void ROR(){
+        void CPU::LSR_eACC(){
+			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+		}
+
+        void CPU::ROL(){
+			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+		}
+
+        void CPU::ROL_eACC(){
+			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+		}
+
+        void CPU::ROR(){
+			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+		}
+
+        void CPU::ROR_eACC(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
 
         /* Jumps & Calls */
-        void JMP(){
+        void CPU::JMP(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void JSR(){
+        void CPU::JSR(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void RTS(){
+        void CPU::RTS(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
 
         /* Branches */
-        void BCC(){
+        void CPU::BCC(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void BCS(){
+        void CPU::BCS(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void BEQ(){
+        void CPU::BEQ(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void BMI(){
+        void CPU::BMI(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void BNE(){
+        void CPU::BNE(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void BPL(){
+        void CPU::BPL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void BVC(){
+        void CPU::BVC(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void BVS(){
+        void CPU::BVS(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
 
         /* Status Flag Changes */
-        void CLC(){
+        void CPU::CLC(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void CLD(){
+        void CPU::CLD(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void CLI(){
+        void CPU::CLI(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void CLV(){
+        void CPU::CLV(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void SEC(){
+        void CPU::SEC(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void SED(){
+        void CPU::SED(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void SEI(){
+        void CPU::SEI(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
 
         /* System Functions */
-        void BRK(){
+        void CPU::BRK(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void NOP(){
+        void CPU::NOP(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void RTI(){
+        void CPU::RTI(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
 
         /* Unofficial/Illegal opcodes */
-        void NOP_ILL(){
+        void CPU::NOP_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void JAM_ILL(){
+        void CPU::JAM_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void SLO_ILL(){
+        void CPU::SLO_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void RLA_ILL(){
+        void CPU::RLA_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void SRE_ILL(){
+        void CPU::SRE_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void RRA_ILL(){
+        void CPU::RRA_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void SAX_ILL(){
+        void CPU::SAX_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void LAX_ILL(){
+        void CPU::LAX_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void DCP_ILL(){
+        void CPU::DCP_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void ISC_ILL(){
+        void CPU::ISC_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void ANC_ILL(){
+        void CPU::ANC_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void ALR_ILL(){
+        void CPU::ALR_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void ARR_ILL(){
+        void CPU::ARR_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void ANE_ILL(){
+        void CPU::ANE_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void SHA_ILL(){
+        void CPU::SHA_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void SHY_ILL(){
+        void CPU::SHY_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void SHX_ILL(){
+        void CPU::SHX_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void TAS_ILL(){
+        void CPU::TAS_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void LXA_ILL(){
+        void CPU::LXA_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void LAS_ILL(){
+        void CPU::LAS_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void SBX_ILL(){
+        void CPU::SBX_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 
-        void USBC_ILL(){
+        void CPU::USBC_ILL(){
 			VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
 		}
 

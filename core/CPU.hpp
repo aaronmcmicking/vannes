@@ -334,9 +334,11 @@ class CPU{
         };
 
     public:
-        CPU(RAM& ram);
+        CPU(RAM& _ram);
 
     private:
+        RAM& ram;
+
         /* registers */
         uint16_t program_counter;
         uint8_t stack_pointer;
@@ -358,6 +360,8 @@ class CPU{
         bit overflow;
         bit negative;
         uint8_t status_as_int(); // returns the packed status register
+
+        uint64_t cycles;
 
         uint8_t fetch_instruction();
         void execute_instruction(uint8_t instruction);
@@ -429,10 +433,14 @@ class CPU{
         void DEY(); 	// Decrement the Y register 	N,Z
 
         /* Shifts */
-        void ASL(); 	// Arithmetic Shift Left 	N,Z,C
-        void LSR(); 	// Logical Shift Right 	    N,Z,C
-        void ROL(); 	// Rotate Left 	            N,Z,C
-        void ROR(); 	// Rotate Right 	        N,Z,C
+        void ASL(); 	    // Arithmetic Shift Left 	N,Z,C
+        void ASL_eACC(); 	// ASL in Accumulator mode 	N,Z,C
+        void LSR(); 	 // Logical Shift Right 	    N,Z,C
+        void LSR_eACC(); // LSR in Accumulator mode N,Z,C
+        void ROL(); 	 // Rotate Left 	            N,Z,C
+        void ROL_eACC(); // ROL in Accumulator mode N,Z,C
+        void ROR(); 	 // Rotate Right 	        N,Z,C
+        void ROR_eACC(); // ROR in Accumulator mode N,Z,C
 
         /* Jumps & Calls */
         void JMP();     // Jump to another location 	 
