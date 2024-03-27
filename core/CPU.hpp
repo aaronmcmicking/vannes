@@ -7,6 +7,7 @@
 // The NES CPU is a modified version of the MOS 6502 called the Ricoh 2A03.
 // It removes some instructions from the 6502 and includes and APU in the CPU.
 class CPU{
+    public:
         // see https://www.masswerk.at/6502/6502_instruction_set.html#ADC
         enum CPU_ADDRESSING_MODE{
             ACC = 1,    // Accumulator 
@@ -364,7 +365,7 @@ class CPU{
         uint64_t cycles;
 
         uint8_t fetch_instruction();
-        void execute_instruction(uint8_t instruction);
+        void    execute_instruction(uint8_t instruction);
 
         enum CPU_ADDRESSING_MODE addr_mode;
         void        set_addr_mode(enum CPU_ADDRESSING_MODE mode);
@@ -387,6 +388,9 @@ class CPU{
         uint16_t    read_reset_vec();
         void        write_brk_vec(uint16_t data);
         uint16_t    read_brk_vec();
+
+        void raise_interrupt(bool maskable);
+        void return_from_interrupt();
 
         /* INSTRUCTIONS */
         /* Load/Store */

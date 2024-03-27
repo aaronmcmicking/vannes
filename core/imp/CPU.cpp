@@ -25,16 +25,118 @@ inline void CPU::write_mem(uint16_t addr, uint8_t data){
     ram.write(addr, data);
 }
 
+void CPU::push_stack(uint8_t data){
+    ram.write(stack_pointer--, data);
+}
+
+uint8_t CPU::pop_stack(){
+    return ram.read(stack_pointer++);
+}
+
+
+void CPU::write_nmi_vec(uint16_t data){
+	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented correctly!");
+    ram.write(RAM::VEC_ADDR::NMI_VEC, (uint8_t)data); // LB
+    ram.write(RAM::VEC_ADDR::NMI_VEC + 1, (uint8_t)(data >> 8)); // HB
+}
+
+uint16_t CPU::read_nmi_vec(){
+	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented correctly!");
+    uint16_t data = 0;
+    data |= read_mem(RAM::VEC_ADDR::NMI_VEC + 1); // HB
+    data <<= 8;
+    data |= read_mem(RAM::VEC_ADDR::NMI_VEC); // LB
+    return data;
+}
+
+void CPU::write_reset_vec(uint16_t data){
+	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented correctly!");
+    ram.write(RAM::VEC_ADDR::RESET_VEC, (uint8_t)data); // LB
+    ram.write(RAM::VEC_ADDR::RESET_VEC + 1, (uint8_t)(data >> 8)); // HB
+}
+
+uint16_t CPU::read_reset_vec(){
+	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented correctly!");
+    uint16_t data = 0;
+    data |= read_mem(RAM::VEC_ADDR::RESET_VEC + 1); // HB
+    data <<= 8;
+    data |= read_mem(RAM::VEC_ADDR::RESET_VEC); // LB
+    return data;
+}
+
+void CPU::write_brk_vec(uint16_t data){
+	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented correctly!");
+    ram.write(RAM::VEC_ADDR::BRK_VEC, (uint8_t)data); // LB
+    ram.write(RAM::VEC_ADDR::BRK_VEC + 1, (uint8_t)(data >> 8)); // HB
+}
+
+uint16_t CPU::read_brk_vec(){
+	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented correctly!");
+    uint16_t data = 0;
+    data |= read_mem(RAM::VEC_ADDR::BRK_VEC + 1); // HB
+    data <<= 8;
+    data |= read_mem(RAM::VEC_ADDR::BRK_VEC); // LB
+    return data;
+}
+
+void CPU::power_up(){
+    // The power-up sequence consumes 8 cycles in actual hardware: 0 to 
+    // assert the interrupt disable flag and 2 to load the reset vector 
+    // into the program counter. The first program instruction occurs on
+    // the 8th cycles when the start-up sequence releases control. The other
+    // 5 cyles consist of 2 NOPs and 3 stack operations, although these
+    // have no effect as the processor is in a disabled state during start-up.
+	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::INFO, "Entered Power-Up sequence");
+    VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented right!");
+    interrupt_disable = 1;
+    program_counter = read_reset_vec();
+    VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::INFO, "Loaded RESET Vec to PC. RESET Vec was %d. Can now enter normal execution cycle", read_reset_vec());
+}
+
+void CPU::engage_reset(){
+	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::INFO, "Engaged reset signal");
+	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::ERROR, "Reset signal is not implemented!");
+}
+
+void CPU::release_reset(){
+	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::INFO, "Releasing reset signal");
+	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::ERROR, "Reset signal is not implemented!");
+}
+
+// Interrupt routines are different for maskable and non-maskable
+// interrupts. However, they follow the same structure and the
+// return-from-interrupt sequence is always the same (see: RTI)
+void CPU::raise_interrupt(bool maskable){
+    if(maskable && interrupt_disable){
+        return;
+    }
+    push_stack((uint8_t)(program_counter >> 8)); // store PCH
+    push_stack((uint8_t)program_counter); // store PCL
+    push_stack(status_as_int()); // since I must have been low for the interrupt
+                                 // and P is stored before I is asserted, 
+                                 // I will always be desasserted by RTI
+    interrupt_disable = 1; // the interrupt program may reassert this later
+    uint16_t pc = 0;
+    if(maskable){
+        pc = read_brk_vec();
+    }else{
+        pc = read_nmi_vec();
+    }
+}
+
+void CPU::return_from_interrupt(){
+}
+
 uint8_t CPU::status_as_int(){ 
     VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented right!");
-    uint8_t status = 0b00010000; // bit 5 is always 1
-    if(carry)               status |= 0b10000000;
-    if(zero)                status |= 0b01000000;
-    if(interrupt_disable)   status |= 0b00100000;
-    if(b_flag)              status |= 0b00001000;
-    if(decimal)             status |= 0b00000100;
-    if(overflow)            status |= 0b00000010;
-    if(negative)            status |= 0b00000001;
+    uint8_t status = 0b00100000; // bit 5 is always 1
+    if(negative)            status |= 0b10000000;
+    if(overflow)            status |= 0b01000000;
+    if(b_flag)              status |= 0b00010000;
+    if(decimal)             status |= 0b00001000;
+    if(interrupt_disable)   status |= 0b00000100;
+    if(zero)                status |= 0b00000010;
+    if(carry)               status |= 0b00000001;
     return status;
 }
 
@@ -53,16 +155,16 @@ uint16_t CPU::fetch_address(){
 		case ABS:
             // ABS has low, then high byte of programmer's desired address at PC+1 and PC+2
             addr |= read_mem(++program_counter);
-            addr |= (read_mem(++program_counter) << 8);
+            addr |= ((uint16_t)read_mem(++program_counter) << 8);
 			break;
 		case ABSX:
             addr |= read_mem(++program_counter);
-            addr |= (read_mem(++program_counter) << 8);
+            addr |= ((uint16_t)read_mem(++program_counter) << 8);
             addr += index_X;
 			break;
 		case ABSY:
             addr |= read_mem(++program_counter);
-            addr |= (read_mem(++program_counter) << 8);
+            addr |= ((uint16_t)read_mem(++program_counter) << 8);
             addr += index_Y;
 			break;
 		case IMM:
