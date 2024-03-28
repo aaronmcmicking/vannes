@@ -352,14 +352,15 @@ class CPU{
          * driven to 1 and bit 4 is known as the "B flag" and is controlled by
          * CPU side effects (see https://www.nesdev.org/wiki/Status_flags#The_B_flag)
          */
-        bit carry;
-        bit zero;
-        bit interrupt_disable;
-        bit b_flag;
-        bit decimal;
-        bit overflow;
-        bit negative;
+        bit carry_f;
+        bit zero_f;
+        bit interrupt_disable_f;
+        bit b_flag_f;
+        bit decimal_f;
+        bit overflow_f;
+        bit negative_f;
         uint8_t status_as_int(); // returns the packed status register
+        void set_status_reg(uint8_t data); 
 
         uint64_t cycles;
 

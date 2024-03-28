@@ -6,6 +6,8 @@
 
 namespace VNES_LOG{
 
+#define LOG(severity, format, ...) log(__FILE__, __LINE__, severity, format, ##__VA_ARGS__)
+
 enum Severity{
     INFO = 1,
     WARN,
@@ -16,30 +18,28 @@ enum Severity{
 void log(const char* _file, int _line, Severity severity, const char* log_str, ...){
     switch(severity){
         case INFO:
-            printf("INFO  - ");
+            printf("INFO  ");
             break;
         case WARN:
-            printf("WARN  - ");
+            printf("WARN  ");
             break;
         case ERROR:
-            printf("ERROR - ");
+            printf("ERROR ");
             break;
         case FATAL:
-            printf("FATAL - ");
+            printf("FATAL ");
             break;
         default:
             printf("Unexpected severity '%d' in VNES_LOG::LOG", severity);
             break;
     }
 
-    printf("%s:%d: ", _file, _line);
+    printf("%s:%d ", _file, _line);
     va_list argptr;
     va_start(argptr, log_str);
     vfprintf(stdout, log_str, argptr);
     va_end(argptr);
     printf("\n");
-
-    if(severity == Severity::FATAL){ exit(1); }
 }
 
 }

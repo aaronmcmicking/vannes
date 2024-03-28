@@ -5,7 +5,7 @@
 #include "../../common/log.hpp"
 
 RAM::RAM(){
-    VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::INFO, "Constructing RAM...");
+    VNES_LOG::LOG(VNES_LOG::INFO, "Constructing RAM...");
 }
 
 void RAM::write(uint16_t addr, uint8_t data){
