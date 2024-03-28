@@ -30,18 +30,17 @@ void CPU::push_stack(uint8_t data){
 }
 
 uint8_t CPU::pop_stack(){
-    return ram.read(stack_pointer++);
+    return ram.read(++stack_pointer);
 }
 
-
 void CPU::write_nmi_vec(uint16_t data){
-	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented correctly!");
+	VNES_LOG::LOG(VNES_LOG::WARN, "write_nmi_vec(): Check that I'm implemented correctly!");
     ram.write(RAM::VEC_ADDR::NMI_VEC, (uint8_t)data); // LB
     ram.write(RAM::VEC_ADDR::NMI_VEC + 1, (uint8_t)(data >> 8)); // HB
 }
 
 uint16_t CPU::read_nmi_vec(){
-	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented correctly!");
+	VNES_LOG::LOG(VNES_LOG::WARN, "read_nmi_vec(): Check that I'm implemented correctly!");
     uint16_t data = 0;
     data |= read_mem(RAM::VEC_ADDR::NMI_VEC + 1); // HB
     data <<= 8;
@@ -50,13 +49,13 @@ uint16_t CPU::read_nmi_vec(){
 }
 
 void CPU::write_reset_vec(uint16_t data){
-	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented correctly!");
+	VNES_LOG::LOG(VNES_LOG::WARN, "write_reset_vec(): Check that I'm implemented correctly!");
     ram.write(RAM::VEC_ADDR::RESET_VEC, (uint8_t)data); // LB
     ram.write(RAM::VEC_ADDR::RESET_VEC + 1, (uint8_t)(data >> 8)); // HB
 }
 
 uint16_t CPU::read_reset_vec(){
-	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented correctly!");
+	VNES_LOG::LOG(VNES_LOG::WARN, "read_reset_vec(): Check that I'm implemented correctly!");
     uint16_t data = 0;
     data |= read_mem(RAM::VEC_ADDR::RESET_VEC + 1); // HB
     data <<= 8;
@@ -65,13 +64,13 @@ uint16_t CPU::read_reset_vec(){
 }
 
 void CPU::write_brk_vec(uint16_t data){
-	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented correctly!");
+	VNES_LOG::LOG(VNES_LOG::WARN, "write_brk_vec(): Check that I'm implemented correctly!");
     ram.write(RAM::VEC_ADDR::BRK_VEC, (uint8_t)data); // LB
     ram.write(RAM::VEC_ADDR::BRK_VEC + 1, (uint8_t)(data >> 8)); // HB
 }
 
 uint16_t CPU::read_brk_vec(){
-	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented correctly!");
+	VNES_LOG::LOG(VNES_LOG::WARN, "read_brk_vec(): Check that I'm implemented correctly!");
     uint16_t data = 0;
     data |= read_mem(RAM::VEC_ADDR::BRK_VEC + 1); // HB
     data <<= 8;
@@ -86,26 +85,26 @@ void CPU::power_up(){
     // the 8th cycles when the start-up sequence releases control. The other
     // 5 cyles consist of 2 NOPs and 3 stack operations, although these
     // have no effect as the processor is in a disabled state during start-up.
-	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::INFO, "Entered Power-Up sequence");
-    VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented right!");
+	VNES_LOG::LOG(VNES_LOG::INFO, "Entered Power-Up sequence");
+    VNES_LOG::LOG(VNES_LOG::WARN, "Check that I'm implemented right!");
     interrupt_disable_f = 1;
     program_counter = read_reset_vec();
-    VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::INFO, "Loaded RESET Vec to PC. RESET Vec was %d. Can now enter normal execution cycle", read_reset_vec());
+    VNES_LOG::LOG(VNES_LOG::INFO, "Loaded RESET Vec to PC. RESET Vec was %d. Can now enter normal execution cycle", read_reset_vec());
 }
 
 void CPU::engage_reset(){
-	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::INFO, "Engaged reset signal");
-	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::ERROR, "Reset signal is not implemented!");
+	VNES_LOG::LOG(VNES_LOG::INFO, "Engaged reset signal");
+	VNES_LOG::LOG(VNES_LOG::ERROR, "Reset signal is not implemented!");
 }
 
 void CPU::release_reset(){
-	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::INFO, "Releasing reset signal");
-	VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::ERROR, "Reset signal is not implemented!");
+	VNES_LOG::LOG(VNES_LOG::INFO, "Releasing reset signal");
+	VNES_LOG::LOG(VNES_LOG::ERROR, "Reset signal is not implemented!");
 }
 
 // Interrupt routines are different for maskable and non-maskable
-// interrupts. However, they follow the same structure and the
-// return-from-interrupt sequence is always the same (see: RTI)
+// interrupts. However, they follow the same structure and the return-from-
+// interrupt sequence is always the same (see: return_from_interrupt())
 void CPU::raise_interrupt(bool maskable){
     if(maskable && interrupt_disable_f){
         return;
@@ -114,21 +113,23 @@ void CPU::raise_interrupt(bool maskable){
     push_stack((uint8_t)program_counter); // store PCL
     push_stack(status_as_int()); // since I must have been low for the interrupt
                                  // and P is stored before I is asserted, 
-                                 // I will always be desasserted by RTI
+                                 // I will always be deasserted by RTI
     interrupt_disable_f = 1; // the interrupt program may reassert this later
-    uint16_t pc = 0;
+
     if(maskable){
-        pc = read_brk_vec();
+        program_counter = read_brk_vec();
     }else{
-        pc = read_nmi_vec();
+        program_counter = read_nmi_vec();
     }
 }
 
 void CPU::return_from_interrupt(){
+    VNES_LOG::LOG(VNES_LOG::FATAL, "Return from interrupt is not yet implemented");
+    VNES_ASSERT(0 && "Return from interrupt is not yet implemented");
 }
 
 uint8_t CPU::status_as_int(){ 
-    VNES_LOG::log(__FILE__, __LINE__, VNES_LOG::WARN, "Check that I'm implemented right!");
+    VNES_LOG::LOG(VNES_LOG::WARN, "status_as_int: Check that I'm implemented right!");
     uint8_t status = 0b00100000; // bit 5 is always 1
     if(negative_f)            status |= 0b10000000;
     if(overflow_f)            status |= 0b01000000;
@@ -141,13 +142,13 @@ uint8_t CPU::status_as_int(){
 }
 
 void CPU::set_status_reg(uint8_t status){
-    carry_f             = (status & 0b10000000);
-    zero_f              = (status & 0b01000000);
-    interrupt_disable_f = (status & 0b00100000);
-    b_flag_f            = (status & 0b00001000);
-    decimal_f           = (status & 0b00000100);
-    overflow_f          = (status & 0b00000010);
-    negative_f          = (status & 0b00000001);
+    negative_f          = (status & 0b10000000);
+    overflow_f          = (status & 0b01000000);
+    b_flag_f            = (status & 0b00010000);
+    decimal_f           = (status & 0b00001000);
+    interrupt_disable_f = (status & 0b00000100);
+    zero_f              = (status & 0b00000010);
+    carry_f             = (status & 0b00000001);
 }
 
 // TODO: verify that page wrapping / page crossing is implemented correctly
@@ -182,7 +183,7 @@ uint16_t CPU::fetch_address(){
 			break;
 		case IMPL:
             addr = 0; // Implicit addressing never needs to fetch an address
-            LOG(INFO, "Tried to fetch address while in Implicit mode. This is usually alright!\n");
+            LOG(INFO, "Tried to fetch address while in Implicit mode. This is usually alright and is not necessarily a bug\n");
 			break;
 		case IND:
             zpg_ptr = read_mem(++program_counter);
