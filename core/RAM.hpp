@@ -10,6 +10,15 @@ class RAM{
         uint8_t read(uint16_t addr);
         void    write(uint16_t addr, uint8_t data);
 
+        // The first address of the the reserved 16 bit vectors.
+        // The lower 8 bits are stored at ADDR and the higher at
+        // ADDR+1
+        enum VEC_ADDR : uint16_t{
+            NMI_VEC = 0xFFFA,
+            RESET_VEC = 0xFFFC,
+            BRK_VEC = 0xFFFE
+        };
+
     private:
         /*
          * 0x0000 - 0x00FF: RAM (zero-page)
