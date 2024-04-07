@@ -13,9 +13,9 @@ inline uint8_t CPU::fetch_instruction(){
     return read_mem(program_counter);
 }
 
-inline void CPU::set_addr_mode(enum CPU_ADDRESSING_MODE mode){
-    addr_mode = mode;
-}
+//inline void CPU::set_addr_mode(enum CPU_ADDRESSING_MODE mode){
+//    addr_mode = mode;
+//}
 
 inline uint8_t CPU::read_mem(uint16_t addr){
     return ram.read(addr);
@@ -106,14 +106,14 @@ void CPU::release_reset(){
 // interrupts. However, the return-from-interrupt sequence 
 // is the same (see: RTI())
 void CPU::raise_interrupt(bool maskable){
-    // since I must have been low for the interrupt
-    // and P is stored before I is asserted, 
-    // I will always be deasserted by RTI
     auto push_program_counter = [this](){
         push_stack(program_counter >> 8);
         push_stack(program_counter);
     };
 
+    // since I must have been low for the interrupt
+    // and P is stored before I is asserted, 
+    // I will always be deasserted by RTI
     if(maskable){
         if(interrupt_disable_f){
             return;
@@ -154,11 +154,11 @@ void CPU::set_status_reg(uint8_t status){
 }
 
 // TODO: verify that page wrapping / page crossing is implemented correctly
-uint16_t CPU::fetch_address(){
+uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode){
     using namespace VNES_LOG;
     uint16_t addr = 0;
     uint8_t zpg_ptr = 0; // a pointer into the zero page is sometimes needed
-    switch(addr_mode){
+    switch(mode){
         case ACC:
             addr = 0; // The accumulator is not in RAM.
                       // Instructions which work on the accumulator should not attempt to
@@ -185,7 +185,7 @@ uint16_t CPU::fetch_address(){
 			break;
 		case IMPL:
             addr = 0; // Implicit addressing never needs to fetch an address
-            LOG(INFO, "Tried to fetch address while in Implicit mode. This is usually alright and is not necessarily a bug\n");
+            LOG(ERROR, "Tried to fetch address while in Implied mode. This attempt shouldn't happen!\n");
 			break;
 		case IND:
             zpg_ptr = read_mem(++program_counter);
@@ -219,7 +219,7 @@ uint16_t CPU::fetch_address(){
             addr += index_Y;
 			break;
         default:
-            LOG(FATAL, "Tried to fetch address with bad addressing mode! Bad mode was %c", addr_mode);
+            LOG(FATAL, "Tried to fetch address with bad addressing mode! Bad mode was %c", mode);
             VNES_ASSERT(0 && "Unreachable");
             break;
     }
@@ -230,614 +230,466 @@ void CPU::execute_instruction(uint8_t instruction){
     switch(instruction){
         /* Load/Store */
         case LDA_XIND:    // Load Accumulator 	N,Z
-            addr_mode = XIND;
-            LDA();
+            LDA(XIND);
             break;
         case LDA_ZPG:    
-            addr_mode = ZPG;
-            LDA();
+            LDA(ZPG);
             break;
         case LDA_IMM:    
-            addr_mode = IMM;
-            LDA();
+            LDA(IMM);
             break;
         case LDA_ABS:    
-            addr_mode = ABS;
-            LDA();
+            LDA(ABS);
             break;
         case LDA_INDY:    
-            addr_mode = INDY;
-            LDA();
+            LDA(INDY);
             break;
         case LDA_ZPGX:    
-            addr_mode = ZPGX;
-            LDA();
+            LDA(ZPGX);
             break;
         case LDA_ABSY:    
-            addr_mode = ABSY;
-            LDA();
+            LDA(ABSY);
             break;
         case LDA_ABSX:    
-            addr_mode = ABSX;
-            LDA();
+            LDA(ABSX);
             break;
         case LDX_IMM: 	// Load X Register 	    N,Z
-            addr_mode = IMM;
-            LDX();
+            LDX(IMM);
             break;
         case LDX_ZPG: 	
-            addr_mode = ZPG;
-            LDX();
+            LDX(ZPG);
             break;
         case LDX_ABS: 	
-            addr_mode = ABS;
-            LDX();
+            LDX(ABS);
             break;
         case LDX_ZPGY: 	
-            addr_mode = ZPGY;
-            LDX();
+            LDX(ZPGY);
             break;
         case LDX_ABSY: 	
-            addr_mode = ABSY;
-            LDX();
+            LDX(ABSY);
             break;
         case LDY_IMM: 	// Load Y Register 	    N,Z
-            addr_mode = IMM;
-            LDY();
+            LDY(IMM);
             break;
         case LDY_ZPG: 	
-            addr_mode = ZPG;
-            LDY();
+            LDY(ZPG);
             break;
         case LDY_ABS: 	
-            addr_mode = ABS;
-            LDY();
+            LDY(ABS);
             break;
         case LDY_ZPGX: 	
-            addr_mode = ZPGX;
-            LDY();
+            LDY(ZPGX);
             break;
         case LDY_ABSX: 	
-            addr_mode = ABSX;
-            LDY();
+            LDY(ABSX);
             break;
         case STA_XIND: 	// Store Accumulator 	 
-            addr_mode = XIND;
-            STA();
+            STA(XIND);
             break;
         case STA_ZPG: 	 	 
-            addr_mode = ZPG;
-            STA();
+            STA(ZPG);
             break;
         case STA_ABS: 	 	 
-            addr_mode = ABS;
-            STA();
+            STA(ABS);
             break;
         case STA_INDY: 	 	 
-            addr_mode = INDY;
-            STA();
+            STA(INDY);
             break;
         case STA_ZPGX: 	 	 
-            addr_mode = ZPGX;
-            STA();
+            STA(ZPGX);
             break;
         case STA_ABSY: 	 	 
-            addr_mode = ABSY;
-            STA();
+            STA(ABSY);
             break;
         case STA_ABSX: 	 	 
-            addr_mode = ABSX;
-            STA();
+            STA(ABSX);
             break;
         case STX_ZPG: 	// Store X Register 	 
-            addr_mode = ZPG;
-            STX();
+            STX(ZPG);
             break;
         case STX_ABS: 	 	 
-            addr_mode = ABS;
-            STX();
+            STX(ABS);
             break;
         case STX_ZPGY: 	 	 
-            addr_mode = ZPGY;
-            STX();
+            STX(ZPGY);
             break;
         case STY_ZPG: 	// Store Y Register 	 
-            addr_mode = ZPG;
-            STY();
+            STY(ZPG);
             break;
         case STY_ABS: 	 	 
-            addr_mode = ABS;
-            STY();
+            STY(ABS);
             break;
         case STY_ZPGX: 	 	 
-            addr_mode = ZPGX;
-            STY();
+            STY(ZPGX);
             break;
 
         /* Register Transfers */
         case TAX_IMPL: 	    // Transfer accumulator to X 	N,Z
-            addr_mode = IMPL;
-			TAX();
+            TAX();
 			break;
         case TAY_IMPL: 	    // Transfer accumulator to Y 	N,Z
-            addr_mode = IMPL;
-			TAY();
+            TAY();
 			break;
         case TXA_IMPL: 	    // Transfer X to accumulator 	N,Z
-            addr_mode = IMPL;
-			TXA();
+            TXA();
 			break;
         case TYA_IMPL: 	    // Transfer Y to accumulator 	N,Z
-            addr_mode = IMPL;
             TYA();
             break;
 
         /* Stack Operations */
         case TSX_IMPL: 	    // Transfer stack pointer to X 	    N,Z
-            addr_mode = IMPL;
-			TSX();
+            TSX();
 			break;
         case TXS_IMPL: 	    // Transfer X to stack pointer 	 
-            addr_mode = IMPL;
-			TXS();
+            TXS();
 			break;
         case PHA_IMPL: 	    // Push accumulator on stack 	 
-            addr_mode = IMPL;
-			PHA();
+            PHA();
 			break;
         case PHP_IMPL: 	    // Push processor status on stack 	 
-            addr_mode = IMPL;
-			PHP();
+            PHP();
 			break;
         case PLA_IMPL: 	    // Pull accumulator from stack 	    N,Z
-            addr_mode = IMPL;
-			PLA();
+            PLA();
 			break;
         case PLP_IMPL: 	    // Pull processor status from stack All
-            addr_mode = IMPL;
-			PLP();
+            PLP();
             break;
 
         /* Logical */
         case AND_XIND: 	    // Logical AND 	            N,Z
-            addr_mode = XIND;
-            AND();
+            AND(XIND);
             break;
         case AND_ZPG: 	    
-            addr_mode = ZPG;
-            AND();
+            AND(ZPG);
             break;
         case AND_IMM: 	    
-            addr_mode = IMM;
-            AND();
+            AND(IMM);
             break;
         case AND_ABS: 	    
-            addr_mode = ABS;
-            AND();
+            AND(ABS);
             break;
         case AND_INDY: 	    
-            addr_mode = INDY;
-            AND();
+            AND(INDY);
             break;
         case AND_ZPGX: 	    
-            addr_mode = ZPGX;
-            AND();
+            AND(ZPGX);
             break;
         case AND_ABSY: 	    
-            addr_mode = ABSY;
-            AND();
+            AND(ABSY);
             break;
         case AND_ABSX: 	    
-            addr_mode = ABSX;
-            AND();
+            AND(ABSX);
             break;
         case EOR_XIND: 	    // Exclusive OR     N,Z
-            addr_mode = XIND;
-            EOR();
+            EOR(XIND);
             break;
         case EOR_ZPG: 	    
-            addr_mode = ZPG;
-            EOR();
+            EOR(ZPG);
             break;
         case EOR_IMM: 	    
-            addr_mode = IMM;
-            EOR();
+            EOR(IMM);
             break;
         case EOR_ABS: 	    
-            addr_mode = ABS;
-            EOR();
+            EOR(ABS);
             break;
         case EOR_INDY: 	    
-            addr_mode = INDY;
-            EOR();
+            EOR(INDY);
             break;
         case EOR_ZPGX: 	    
-            addr_mode = ZPGX;
-            EOR();
+            EOR(ZPGX);
             break;
         case EOR_ABSY: 	    
-            addr_mode = ABSY;
-            EOR();
+            EOR(ABSY);
             break;
         case EOR_ABSX: 	    
-            addr_mode = ABSX;
-            EOR();
+            EOR(ABSX);
             break;
         case ORA_XIND: 	    // Logical Inclusive OR 	N,Z
-            addr_mode = XIND;
-            ORA();
+            ORA(XIND);
             break;
         case ORA_ZPG: 	    
-            addr_mode = ZPG;
-            ORA();
+            ORA(ZPG);
             break;
         case ORA_IMM: 	    
-            addr_mode = IMM;
-            ORA();
+            ORA(IMM);
             break;
         case ORA_ABS: 	    
-            addr_mode = ABS;
-            ORA();
+            ORA(ABS);
             break;
         case ORA_INDY: 	    
-            addr_mode = INDY;
-            ORA();
+            ORA(INDY);
             break;
         case ORA_ZPGX: 	    
-            addr_mode = ZPGX;
-            ORA();
+            ORA(ZPGX);
             break;
         case ORA_ABSY: 	    
-            addr_mode = ABSY;
-            ORA();
+            ORA(ABSY);
             break;
         case ORA_ABSX: 	    
-            addr_mode = ABSX;
-            ORA();
+            ORA(ABSX);
             break;
         case BIT_ZPG: 	    // Bit Test 	            N,V,Z
-            addr_mode = ZPG;
-            BIT();
+            BIT(ZPG);
             break;
         case BIT_ABS: 	    
-            addr_mode = ABS;
-            BIT();
+            BIT(ABS);
             break;
 
         /* Arithmetic */
         case ADC_XIND: 	    // Add with Carry 	    N,V,Z,C 
-            addr_mode = XIND;
-            ADC();
+            ADC(XIND);
             break;
         case ADC_ZPG: 	    
-            addr_mode = ZPG;
-            ADC();
+            ADC(ZPG);
             break;
         case ADC_IMM: 	    
-            addr_mode = IMM;
-            ADC();
+            ADC(IMM);
             break;
         case ADC_ABS: 	    
-            addr_mode = ABS;
-            ADC();
+            ADC(ABS);
             break;
         case ADC_INDY: 	    
-            addr_mode = INDY;
-            ADC();
+            ADC(INDY);
             break;
         case ADC_ZPGX: 	    
-            addr_mode = ZPGX;
-            ADC();
+            ADC(ZPGX);
             break;
         case ADC_ABSY: 	    
-            addr_mode = ABSY;
-            ADC();
+            ADC(ABSY);
             break;
         case ADC_ABSX: 	    
-            addr_mode = ABSX;
-            ADC();
+            ADC(ABSX);
             break;
         case SBC_XIND: 	    // Subtract with Carry 	N,V,Z,C
-            addr_mode = XIND;
-            SBC();
+            SBC(XIND);
             break;
         case SBC_ZPG: 	    
-            addr_mode = ZPG;
-            SBC();
+            SBC(ZPG);
             break;
         case SBC_IMM: 	    
-            addr_mode = IMM;
-            SBC();
+            SBC(IMM);
             break;
         case SBC_ABS: 	    
-            addr_mode = ABS;
-            SBC();
+            SBC(ABS);
             break;
         case SBC_INDY: 	    
-            addr_mode = INDY;
-            SBC();
+            SBC(INDY);
             break;
         case SBC_ZPGX: 	    
-            addr_mode = ZPGX;
-            SBC();
+            SBC(ZPGX);
             break;
         case SBC_ABSY: 	    
-            addr_mode = ABSY;
-            SBC();
+            SBC(ABSY);
             break;
         case SBC_ABSX: 	    
-            addr_mode = ABSX;
-            SBC();
+            SBC(ABSX);
             break;
         case CMP_XIND: 	    // Compare accumulator 	N,Z,C
-            addr_mode = XIND;
-            CMP();
+            CMP(XIND);
             break;
         case CMP_ZPG: 	    
-            addr_mode = ZPG;
-            CMP();
+            CMP(ZPG);
             break;
         case CMP_IMM: 	    
-            addr_mode = IMM;
-            CMP();
+            CMP(IMM);
             break;
         case CMP_ABS: 	    
-            addr_mode = ABS;
-            CMP();
+            CMP(ABS);
             break;
         case CMP_INDY: 	    
-            addr_mode = INDY;
-            CMP();
+            CMP(INDY);
             break;
         case CMP_ZPGX: 	    
-            addr_mode = ZPGX;
-            CMP();
+            CMP(ZPGX);
             break;
         case CMP_ABSY: 	    
-            addr_mode = ABSY;
-            CMP();
+            CMP(ABSY);
             break;
         case CMP_ABSX: 	    
-            addr_mode = ABSX;
-            CMP();
+            CMP(ABSX);
             break;
         case CPX_IMM: 	    // Compare X register 	N,Z,C
-            addr_mode = IMM;
-            CPX();
+            CPX(IMM);
             break;
         case CPX_ZPG: 	    
-            addr_mode = ZPG;
-            CPX();
+            CPX(ZPG);
             break;
         case CPX_ABS: 	    
-            addr_mode = ABS;
-            CPX();
+            CPX(ABS);
             break;
         case CPY_IMM: 	    // Compare Y register 	N,Z,C
-            addr_mode = IMM;
-            CPY();
+            CPY(IMM);
             break;
         case CPY_ZPG: 	    
-            addr_mode = ZPG;
-            CPY();
+            CPY(ZPG);
             break;
         case CPY_ABS: 	    
-            addr_mode = ABS;
-            CPY();
+            CPY(ABS);
             break;
 
         /* Increments & Decrements */
         case INC_ZPG: 	    // Increment a memory location 	N,Z
-            addr_mode = ZPG;
-            INC();
+            INC(ZPG);
             break;
         case INC_ABS: 	    
-            addr_mode = ABS;
-            INC();
+            INC(ABS);
             break;
         case INC_ZPGX: 	    
-            addr_mode = ZPGX;
-            INC();
+            INC(ZPGX);
             break;
         case INC_ABSX: 	    
-            addr_mode = ABSX;
-            INC();
+            INC(ABSX);
             break;
         case INX_IMPL: 	    // Increment the X register 	N,Z
-            addr_mode = IMPL;
             INX();
             break;
         case INY_IMPL: 	    // Increment the Y register 	N,Z
-            addr_mode = IMPL;
             INY();
             break;
         case DEC_ZPG: 	    // Decrement a memory location 	N,Z
-            addr_mode = ZPG;
-            DEC();
+            DEC(ZPG);
             break;
         case DEC_ABS: 	    
-            addr_mode = ABS;
-            DEC();
+            DEC(ABS);
             break;
         case DEC_ZPGX: 	    
-            addr_mode = ZPGX;
-            DEC();
+            DEC(ZPGX);
             break;
         case DEC_ABSX: 	    
-            addr_mode = ABSX;
-            DEC();
+            DEC(ABSX);
             break;
         case DEX_IMPL: 	    // Decrement the X register 	N,Z
-            addr_mode = IMPL;
             DEX();
             break;
         case DEY_IMPL: 	    // Decrement the Y register 	N,Z
-            addr_mode = IMPL;
             DEY();
             break;
 
         /* Shifts */
         case ASL_ZPG: 	    // Arithmetic Shift Left 	N,Z,C
-            addr_mode = ZPG;
-            ASL();
+            ASL(ZPG);
             break;
         case ASL_ACC: 	    
-            addr_mode = ACC;
             ASL_eACC();
             break;
         case ASL_ABS: 	    
-            addr_mode = ABS;
-            ASL();
+            ASL(ABS);
             break;
         case ASL_ZPGX: 	    
-            addr_mode = ZPGX;
-            ASL();
+            ASL(ZPGX);
             break;
         case ASL_ABSX: 	    
-            addr_mode = ABSX;
-            ASL();
+            ASL(ABSX);
             break;
         case LSR_ZPG: 	    // Logical Shift Right 	    N,Z,C
-            addr_mode = ZPG;
-            LSR();
+            LSR(ZPG);
             break;
         case LSR_ACC: 	    
-            addr_mode = ACC;
             LSR_eACC();
             break;
         case LSR_ABS: 	    
-            addr_mode = ABS;
-            LSR();
+            LSR(ABS);
             break;
         case LSR_ZPGX: 	    
-            addr_mode = ZPGX;
-            LSR();
+            LSR(ZPGX);
             break;
         case LSR_ABSX: 	    
-            addr_mode = ABSX;
-            LSR();
+            LSR(ABSX);
             break;
         case ROL_ZPG: 	    // Rotate Left 	            N,Z,C
-            addr_mode = ZPG;
-            ROL();
+            ROL(ZPG);
             break;
         case ROL_ACC: 	    
-            addr_mode = ACC;
             ROL_eACC();
             break;
         case ROL_ABS: 	    
-            addr_mode = ABS;
-            ROL();
+            ROL(ABS);
             break;
         case ROL_ZPGX: 	    
-            addr_mode = ZPGX;
-            ROL();
+            ROL(ZPGX);
             break;
         case ROL_ABSX: 	    
-            addr_mode = ABSX;
-            ROL();
+            ROL(ABSX);
             break;
         case ROR_ZPG: 	    // Rotate Right 	        N,Z,C
-            addr_mode = ZPG;
-            ROR();
+            ROR(ZPG);
             break;
         case ROR_ACC: 	    
-            addr_mode = ACC;
             ROR_eACC();
             break;
         case ROR_ABS: 	    
-            addr_mode = ABS;
-            ROR();
+            ROR(ABS);
             break;
         case ROR_ZPGX: 	    
-            addr_mode = ZPGX;
-            ROR();
+            ROR(ZPGX);
             break;
         case ROR_ABSX: 	    
-            addr_mode =  ABSX;
-            ROR();
+            ROR(ABS);
             break;
 
         /* Jumps & Calls */
         case JMP_ABS: 	    // Jump to another location 	 
-            addr_mode = ABS;
-            JMP();
+            JMP(ABS);
             break;
         case JMP_IND: 	     	 
-            addr_mode = IND;
-            JMP();
+            JMP(IND);
             break;
         case JSR_ABS: 	    // Jump to a subroutine 	 
-            addr_mode = ABS;
             JSR();
             break;
         case RTS_IMPL: 	    // Return from subroutine 	 
-            addr_mode = IMPL;
             RTS();
             break;
 
         /* Branches */
         case BCC_REL: 	    // Branch if carry flag clear 	 
-            addr_mode = REL;
-			BCC();
+            BCC();
 			break;
         case BCS_REL: 	    // Branch if carry flag set 	 
-            addr_mode = REL;
-			BCS();
+            BCS();
 			break;
         case BEQ_REL: 	    // Branch if zero flag set 	 
-            addr_mode = REL;
-			BEQ();
+            BEQ();
 			break;
         case BMI_REL: 	    // Branch if negative flag set 	 
-            addr_mode = REL;
-			BMI();
+            BMI();
 			break;
         case BNE_REL: 	    // Branch if zero flag clear 	 
-            addr_mode = REL;
-			BNE();
+            BNE();
 			break;
         case BPL_REL: 	    // Branch if negative flag clear 	 
-            addr_mode = REL;
-			BPL();
+            BPL();
 			break;
         case BVC_REL: 	    // Branch if overflow flag clear 	 
-            addr_mode = REL;
-			BVC();
+            BVC();
 			break;
         case BVS_REL: 	    // Branch if overflow flag set 	 
-            addr_mode = REL;
-			BVS();
+            BVS();
 			break;
 
         /* Status Flag Changes */
         case CLC_IMPL: 	    // Clear carry flag 	            C
-            addr_mode = IMPL;
-			CLC();
+            CLC();
 			break;
         case CLD_IMPL: 	    // Clear decimal mode flag 	        D
-            addr_mode = IMPL;
-			CLD();
+            CLD();
 			break;
         case CLI_IMPL: 	    // Clear interrupt disable flag 	I
-            addr_mode = IMPL;
-			CLI();
+            CLI();
 			break;
         case CLV_IMPL: 	    // Clear overflow flag 	            V
-            addr_mode = IMPL;
-			CLV();
+            CLV();
 			break;
         case SEC_IMPL: 	    // Set carry flag 	                C
-            addr_mode = IMPL;
-			SEC();
+            SEC();
 			break;
         case SED_IMPL: 	    // Set decimal mode flag 	        D
-            addr_mode = IMPL;
-			SED();
+            SED();
 			break;
         case SEI_IMPL: 	    // Set interrupt disable flag 	    I
-            addr_mode = IMPL;
-			SEI();
+            SEI();
 			break;
 
         /* System Functions */
@@ -1198,34 +1050,34 @@ void CPU::execute_instruction(uint8_t instruction){
 } // execute_instruction
 
 
-void CPU::LDA(){
-    accumulator = read_mem(fetch_address());
+void CPU::LDA(enum ADDRESSING_MODE mode){
+    accumulator = read_mem(fetch_address(mode));
     zero_f      = (accumulator == 0);
     negative_f  = (accumulator & 0b10000000) ? 1 : 0;
 }
 
-void CPU::LDX(){
-    index_X = read_mem(fetch_address());
+void CPU::LDX(enum ADDRESSING_MODE mode){
+    index_X = read_mem(fetch_address(mode));
     zero_f      = (index_X == 0) ? 1 : 0;
     negative_f  = (index_X & 0b10000000) ? 1 : 0;
 }
 
-void CPU::LDY(){
-    index_Y = read_mem(fetch_address());
+void CPU::LDY(enum ADDRESSING_MODE mode){
+    index_Y = read_mem(fetch_address(mode));
     zero_f      = (index_Y == 0) ? 1 : 0;
     negative_f  = (index_Y & 0b10000000) ? 1 : 0;
 }
 
-void CPU::STA(){
-    write_mem(fetch_address(), accumulator);
+void CPU::STA(enum ADDRESSING_MODE mode){
+    write_mem(fetch_address(mode), accumulator);
 }
 
-void CPU::STX(){
-    write_mem(fetch_address(), index_X);
+void CPU::STX(enum ADDRESSING_MODE mode){
+    write_mem(fetch_address(mode), index_X);
 }
 
-void CPU::STY(){
-    write_mem(fetch_address(), index_Y);
+void CPU::STY(enum ADDRESSING_MODE mode){
+    write_mem(fetch_address(mode), index_Y);
 }
 
 
@@ -1288,26 +1140,26 @@ void CPU::PLP(){
 
 
 /* Logical */
-void CPU::AND(){
-    accumulator = accumulator & read_mem(fetch_address());
+void CPU::AND(enum ADDRESSING_MODE mode){
+    accumulator = accumulator & read_mem(fetch_address(mode));
     zero_f      = (accumulator == 0);
     negative_f  = (accumulator & 0b10000000) ? 1 : 0;
 }
 
-void CPU::EOR(){
-    accumulator = accumulator ^ read_mem(fetch_address());
+void CPU::EOR(enum ADDRESSING_MODE mode){
+    accumulator = accumulator ^ read_mem(fetch_address(mode));
     zero_f      = (accumulator == 0);
     negative_f  = (accumulator & 0b10000000) ? 1 : 0;
 }
 
-void CPU::ORA(){
-    accumulator = accumulator | read_mem(fetch_address());
+void CPU::ORA(enum ADDRESSING_MODE mode){
+    accumulator = accumulator | read_mem(fetch_address(mode));
     zero_f      = (accumulator == 0);
     negative_f  = (accumulator & 0b10000000) ? 1 : 0;
 }
 
-void CPU::BIT(){
-    uint8_t val = read_mem(fetch_address());
+void CPU::BIT(enum ADDRESSING_MODE mode){
+    uint8_t val = read_mem(fetch_address(mode));
     uint8_t result = accumulator & val;
     zero_f      = (result == 0);
     negative_f  = (val & 0b10000000) ? 1 : 0;
@@ -1316,9 +1168,9 @@ void CPU::BIT(){
 
 
 /* Arithmetic */
-void CPU::ADC(){
+void CPU::ADC(enum ADDRESSING_MODE mode){
     // get the result as uint16_t so we can more easily check overflow
-    uint16_t result = (uint16_t)accumulator + read_mem(fetch_address()) + (uint16_t)carry_f;
+    uint16_t result = (uint16_t)accumulator + read_mem(fetch_address(mode)) + (uint16_t)carry_f;
     carry_f     = ((uint8_t)result & 0b100000000) ? 1 : 0; // carry_f = result[8]
     overflow_f  = (accumulator & 0b10000000) != ((uint8_t)result & 0b10000000);
     negative_f  = ((uint8_t)result & 0b10000000) ? 1 : 0;
@@ -1327,8 +1179,8 @@ void CPU::ADC(){
 }
 
 // this is kinda a mess but it works
-void CPU::SBC(){
-    uint8_t data = read_mem(fetch_address());
+void CPU::SBC(enum ADDRESSING_MODE mode){
+    uint8_t data = read_mem(fetch_address(mode));
 
     // sign 2's complement
     uint8_t sign_2_subtractor = ((data + carry_f) ^ 0xFF) + 1;
@@ -1343,22 +1195,22 @@ void CPU::SBC(){
     accumulator = (uint8_t)result;
 }
 
-void CPU::CMP(){
-    uint8_t data = read_mem(fetch_address());
+void CPU::CMP(enum ADDRESSING_MODE mode){
+    uint8_t data = read_mem(fetch_address(mode));
     zero_f      = (accumulator == data);
     negative_f  = ((accumulator - data) & 0b10000000);
     carry_f     = (accumulator >= data);
 }
 
-void CPU::CPX(){
-    uint8_t data = read_mem(fetch_address());
+void CPU::CPX(enum ADDRESSING_MODE mode){
+    uint8_t data = read_mem(fetch_address(mode));
     zero_f      = (index_X == data);
     carry_f     = (index_X >= data);
     negative_f  = ((index_X - data) & 0b10000000);
 }
 
-void CPU::CPY(){
-    uint8_t data = read_mem(fetch_address());
+void CPU::CPY(enum ADDRESSING_MODE mode){
+    uint8_t data = read_mem(fetch_address(mode));
     zero_f      = (index_Y == data);
     negative_f  = ((index_Y - data) & 0b10000000);
     carry_f     = (index_Y >= data);
@@ -1366,8 +1218,8 @@ void CPU::CPY(){
 
 
 /* Increments & Decrements */
-void CPU::INC(){
-    uint16_t addr = fetch_address();
+void CPU::INC(enum ADDRESSING_MODE mode){
+    uint16_t addr = fetch_address(mode);
     uint8_t data = read_mem(addr);
     data++;
     negative_f  = (data & 0b10000000);
@@ -1387,8 +1239,8 @@ void CPU::INY(){
     zero_f      = (index_Y == 0);
 }
 
-void CPU::DEC(){
-    uint16_t addr = fetch_address();
+void CPU::DEC(enum ADDRESSING_MODE mode){
+    uint16_t addr = fetch_address(mode);
     int8_t data = read_mem(addr); // cast to signed
     data--;
     negative_f  = (data & 0b10000000);
@@ -1410,8 +1262,8 @@ void CPU::DEY(){
 
 
 /* Shifts */
-void CPU::ASL(){
-    uint16_t addr = fetch_address();
+void CPU::ASL(enum ADDRESSING_MODE mode){
+    uint16_t addr = fetch_address(mode);
     uint8_t data = read_mem(addr);;
     carry_f     = (data & 0b10000000); // the top bit is shifted into carry_f
     data = data << 1;
@@ -1427,8 +1279,8 @@ void CPU::ASL_eACC(){
     zero_f      = (accumulator == 0);
 }
 
-void CPU::LSR(){
-    uint16_t addr = fetch_address();
+void CPU::LSR(enum ADDRESSING_MODE mode){
+    uint16_t addr = fetch_address(mode);
     uint8_t data = read_mem(addr);;
     carry_f     = (data & 0b00000001); // lowest bit shifts into carry_f
     negative_f  = 0; // result is always positive (bit 7 always 0)
@@ -1444,8 +1296,8 @@ void CPU::LSR_eACC(){
     zero_f      = (accumulator == 0);
 }
 
-void CPU::ROL(){
-    uint16_t addr = fetch_address();
+void CPU::ROL(enum ADDRESSING_MODE mode){
+    uint16_t addr = fetch_address(mode);
     uint8_t data = read_mem(addr);
 
     bit new_bit0    = carry_f;
@@ -1468,8 +1320,8 @@ void CPU::ROL_eACC(){
     zero_f      = (accumulator == 0);
 }
 
-void CPU::ROR(){
-    uint16_t addr = fetch_address();
+void CPU::ROR(enum ADDRESSING_MODE mode){
+    uint16_t addr = fetch_address(mode);
     uint8_t data = read_mem(addr);
 
     bit new_carry_f = (data & 0b00000001);
@@ -1495,9 +1347,8 @@ void CPU::ROR_eACC(){
 
 
 /* Jumps & Calls */
-void CPU::JMP(){
-    program_counter = (uint16_t)read_mem(++program_counter);
-    program_counter |= (uint16_t)read_mem(++program_counter >> 8);
+void CPU::JMP(enum ADDRESSING_MODE mode){
+    program_counter = fetch_address(mode);
 }
 
 void CPU::JSR(){

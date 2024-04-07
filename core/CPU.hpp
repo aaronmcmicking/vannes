@@ -9,7 +9,7 @@
 class CPU{
     public:
         // see https://www.masswerk.at/6502/6502_instruction_set.html#ADC
-        enum CPU_ADDRESSING_MODE{
+        enum ADDRESSING_MODE{
             ACC = 1,    // Accumulator 
             ABS,        // Absolute
             ABSX,       // Absolute, X-indexed
@@ -27,7 +27,7 @@ class CPU{
 
         enum OPCODE : uint8_t{
             /* LEGEND:
-             * OPCODE_ADDRMODE = HEX // OPERATION, UPDATED FLAGS
+             * OPCODE_ADDRMODE = HEX // OPERATION, UPDATED FLAGS - ADDR MODE (if exclusive)
              */
             /* Load/Store */
             LDA_XIND = 0xA1,    // Load Accumulator 	N,Z
@@ -368,9 +368,7 @@ class CPU{
         uint8_t fetch_instruction();
         void    execute_instruction(uint8_t instruction);
 
-        enum CPU_ADDRESSING_MODE addr_mode;
-        void        set_addr_mode(enum CPU_ADDRESSING_MODE mode);
-        uint16_t    fetch_address();
+        uint16_t    fetch_address(enum ADDRESSING_MODE mode);
 
         uint8_t read_mem(uint16_t addr);
         void    write_mem(uint16_t addr, uint8_t data);
@@ -395,86 +393,86 @@ class CPU{
 
         /* INSTRUCTIONS */
         /* Load/Store */
-        void LDA();     // Load Accumulator 	N,Z
-        void LDX(); 	// Load X Register 	    N,Z
-        void LDY(); 	// Load Y Register 	    N,Z
-        void STA(); 	// Store Accumulator 	 
-        void STX(); 	// Store X Register 	 
-        void STY();     // Store Y Register 	 
+        void LDA(enum ADDRESSING_MODE mode);    // Load Accumulator 	N,Z
+        void LDX(enum ADDRESSING_MODE mode); 	// Load X Register 	    N,Z
+        void LDY(enum ADDRESSING_MODE mode); 	// Load Y Register 	    N,Z
+        void STA(enum ADDRESSING_MODE mode); 	// Store Accumulator 	 
+        void STX(enum ADDRESSING_MODE mode); 	// Store X Register 	 
+        void STY(enum ADDRESSING_MODE mode);    // Store Y Register 	 
 
         /* Register Transfers */
-        void TAX(); 	// Transfer accumulator to X 	N,Z
-        void TAY(); 	// Transfer accumulator to Y 	N,Z
-        void TXA(); 	// Transfer X to accumulator 	N,Z
-        void TYA(); 	// Transfer Y to accumulator 	N,Z
+        void TAX(); 	// Transfer accumulator to X 	N,Z - IMPLIED MODE ONLY
+        void TAY(); 	// Transfer accumulator to Y 	N,Z - IMPLIED MODE ONLY
+        void TXA(); 	// Transfer X to accumulator 	N,Z - IMPLIED MODE ONLY
+        void TYA(); 	// Transfer Y to accumulator 	N,Z - IMPLIED MODE ONLY
 
         /* Stack Operations */
-        void TSX(); 	// Transfer stack pointer to X 	    N,Z
-        void TXS(); 	// Transfer X to stack pointer 	 
-        void PHA(); 	// Push accumulator on stack 	 
-        void PHP(); 	// Push processor status on stack 	 
-        void PLA(); 	// Pull accumulator from stack 	    N,Z
-        void PLP(); 	// Pull processor status from stack All
+        void TSX(); 	// Transfer stack pointer to X 	    N,Z - IMPLIED MODE ONLY
+        void TXS(); 	// Transfer X to stack pointer 	        - IMPLIED MODE ONLY 
+        void PHA(); 	// Push accumulator on stack 	        - IMPLIED MODE ONLY 
+        void PHP(); 	// Push processor status on stack 	    - IMPLIED MODE ONLY  
+        void PLA(); 	// Pull accumulator from stack 	    N,Z - IMPLIED MODE ONLY
+        void PLP(); 	// Pull processor status from stack All - IMPLIED MODE ONLY
 
         /* Logical */
-        void AND(); 	// Logical AND 	            N,Z
-        void EOR(); 	// Exclusive OR 	        N,Z
-        void ORA(); 	// Logical Inclusive OR 	N,Z
-        void BIT(); 	// Bit Test 	            N,V,Z
+        void AND(enum ADDRESSING_MODE mode); 	// Logical AND 	            N,Z
+        void EOR(enum ADDRESSING_MODE mode); 	// Exclusive OR 	        N,Z
+        void ORA(enum ADDRESSING_MODE mode); 	// Logical Inclusive OR 	N,Z
+        void BIT(enum ADDRESSING_MODE mode); 	// Bit Test 	            N,V,Z
 
         /* Arithmetic */
-        void ADC(); 	// Add with Carry 	    N,V,Z,C 
-        void SBC(); 	// Subtract with Carry 	N,V,Z,C
-        void CMP(); 	// Compare accumulator 	N,Z,C
-        void CPX(); 	// Compare X register 	N,Z,C
-        void CPY(); 	// Compare Y register 	N,Z,C
+        void ADC(enum ADDRESSING_MODE mode); 	// Add with Carry 	    N,V,Z,C 
+        void SBC(enum ADDRESSING_MODE mode); 	// Subtract with Carry 	N,V,Z,C
+        void CMP(enum ADDRESSING_MODE mode); 	// Compare accumulator 	N,Z,C
+        void CPX(enum ADDRESSING_MODE mode); 	// Compare X register 	N,Z,C
+        void CPY(enum ADDRESSING_MODE mode); 	// Compare Y register 	N,Z,C
 
         /* Increments & Decrements */
-        void INC(); 	// Increment a memory location 	N,Z
-        void INX(); 	// Increment the X register 	N,Z
-        void INY(); 	// Increment the Y register 	N,Z
-        void DEC(); 	// Decrement a memory location 	N,Z
-        void DEX(); 	// Decrement the X register 	N,Z
-        void DEY(); 	// Decrement the Y register 	N,Z
+        void INC(enum ADDRESSING_MODE mode); 	// Increment a memory location 	N,Z
+        void INX(); 	                        // Increment the X register 	N,Z - IMPLIED MODE ONLY
+        void INY(); 	                        // Increment the Y register 	N,Z - IMPLIED MODE ONLZ
+        void DEC(enum ADDRESSING_MODE mode); 	// Decrement a memory location 	N,Z
+        void DEX(); 	                        // Decrement the X register 	N,Z - IMPLIED MODE ONLY
+        void DEY(); 	                        // Decrement the Y register 	N,Z - IMPLIED MODE ONLY
 
         /* Shifts */
-        void ASL(); 	    // Arithmetic Shift Left 	N,Z,C
-        void ASL_eACC(); 	// ASL in Accumulator mode 	N,Z,C
-        void LSR(); 	 // Logical Shift Right 	    N,Z,C
-        void LSR_eACC(); // LSR in Accumulator mode N,Z,C
-        void ROL(); 	 // Rotate Left 	            N,Z,C
-        void ROL_eACC(); // ROL in Accumulator mode N,Z,C
-        void ROR(); 	 // Rotate Right 	        N,Z,C
-        void ROR_eACC(); // ROR in Accumulator mode N,Z,C
+        void ASL(enum ADDRESSING_MODE mode); 	// Arithmetic Shift Left 	N,Z,C
+        void ASL_eACC(); 	                    // ASL in Accumulator mode 	N,Z,C
+        void LSR(enum ADDRESSING_MODE mode); 	// Logical Shift Right 	    N,Z,C
+        void LSR_eACC();                        // LSR in Accumulator mode N,Z,C
+        void ROL(enum ADDRESSING_MODE mode); 	// Rotate Left 	            N,Z,C
+        void ROL_eACC();                        // ROL in Accumulator mode N,Z,C
+        void ROR(enum ADDRESSING_MODE mode); 	// Rotate Right 	        N,Z,C
+        void ROR_eACC();                        // ROR in Accumulator mode N,Z,C
 
         /* Jumps & Calls */
-        void JMP();     // Jump to another location 	 
-        void JSR(); 	// Jump to a subroutine 	 
-        void RTS(); 	// Return from subroutine 	 
+        void JMP(enum ADDRESSING_MODE mode);    // Jump to another location 	 
+        void JSR(); 	                        // Jump to a subroutine 	 - ABSOLUTE MODE ONLY
+        void RTS(); 	                        // Return from subroutine 	 - IMPLIED MODE ONLY
 
         /* Branches */
-        void BCC(); 	// Branch if carry flag clear 	 
-        void BCS(); 	// Branch if carry flag set 	 
-        void BEQ(); 	// Branch if zero flag set 	 
-        void BMI(); 	// Branch if negative flag set 	 
-        void BNE(); 	// Branch if zero flag clear 	 
-        void BPL(); 	// Branch if negative flag clear 	 
-        void BVC(); 	// Branch if overflow flag clear 	 
-        void BVS(); 	// Branch if overflow flag set 	 
+        void BCC(); 	// Branch if carry flag clear    - RELATIVE MODE ONLY
+        void BCS(); 	// Branch if carry flag set      - RELATIVE MODE ONLY
+        void BEQ(); 	// Branch if zero flag set 	     - RELATIVE MODE ONLY
+        void BMI(); 	// Branch if negative flag set 	 - RELATIVE MODE ONLY
+        void BNE(); 	// Branch if zero flag clear 	 - RELATIVE MODE ONLY
+        void BPL(); 	// Branch if negative flag clear - RELATIVE MODE ONLY	 
+        void BVC(); 	// Branch if overflow flag clear - RELATIVE MODE ONLY	 
+        void BVS(); 	// Branch if overflow flag set 	 - RELATIVE MODE ONLY
 
         /* Status Flag Changes */
-        void CLC(); 	// Clear carry flag 	            C
-        void CLD(); 	// Clear decimal mode flag 	        D
-        void CLI(); 	// Clear interrupt disable flag 	I
-        void CLV(); 	// Clear overflow flag 	            V
-        void SEC(); 	// Set carry flag 	                C
-        void SED(); 	// Set decimal mode flag 	        D
-        void SEI(); 	// Set interrupt disable flag 	    I
+        void CLC(); 	// Clear carry flag 	            C - IMPLIED MODE ONLY
+        void CLD(); 	// Clear decimal mode flag 	        D - IMPLIED MODE ONLY
+        void CLI(); 	// Clear interrupt disable flag 	I - IMPLIED MODE ONLY
+        void CLV(); 	// Clear overflow flag 	            V - IMPLIED MODE ONLY
+        void SEC(); 	// Set carry flag 	                C - IMPLIED MODE ONLY
+        void SED(); 	// Set decimal mode flag 	        D - IMPLIED MODE ONLY
+        void SEI(); 	// Set interrupt disable flag 	    I - IMPLIED MODE ONLY
 
         /* System Functions */
-        void BRK(); 	// Force an interrupt 	    B
-        void NOP(); 	// No Operation (illegal nop's also exist)
-        void RTI();	    // Return from Interrupt 	All
+        void BRK(); 	// Force an interrupt 	    B - IMPLIED MODE ONLY
+        void NOP(); 	// No Operation (illegal nop's also exist) - IMPLIED MODE ONLY
+        void RTI();	    // Return from Interrupt 	All - IMPLIED MODE ONLY
 
         /* Unofficial/Illegal opcodes */
         void NOP_ILL(); // Illegal NOP 
