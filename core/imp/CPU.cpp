@@ -26,17 +26,17 @@ inline void CPU::write_mem(uint16_t addr, uint8_t data){
 }
 
 void CPU::push_stack(uint8_t data){
-    ram.write(stack_pointer--, data);
+    write_mem(stack_pointer--, data);
 }
 
 uint8_t CPU::pop_stack(){
-    return ram.read(++stack_pointer);
+    return read_mem(++stack_pointer);
 }
 
 void CPU::write_nmi_vec(uint16_t data){
 	VNES_LOG::LOG(VNES_LOG::WARN, "write_nmi_vec(): Check that I'm implemented correctly!");
-    ram.write(RAM::VEC_ADDR::NMI_VEC, (uint8_t)data); // LB
-    ram.write(RAM::VEC_ADDR::NMI_VEC + 1, (uint8_t)(data >> 8)); // HB
+    write_mem(RAM::VEC_ADDR::NMI_VEC, (uint8_t)data); // LB
+    write_mem(RAM::VEC_ADDR::NMI_VEC + 1, (uint8_t)(data >> 8)); // HB
 }
 
 uint16_t CPU::read_nmi_vec(){
@@ -50,8 +50,8 @@ uint16_t CPU::read_nmi_vec(){
 
 void CPU::write_reset_vec(uint16_t data){
 	VNES_LOG::LOG(VNES_LOG::WARN, "write_reset_vec(): Check that I'm implemented correctly!");
-    ram.write(RAM::VEC_ADDR::RESET_VEC, (uint8_t)data); // LB
-    ram.write(RAM::VEC_ADDR::RESET_VEC + 1, (uint8_t)(data >> 8)); // HB
+    write_mem(RAM::VEC_ADDR::RESET_VEC, (uint8_t)data); // LB
+    write_mem(RAM::VEC_ADDR::RESET_VEC + 1, (uint8_t)(data >> 8)); // HB
 }
 
 uint16_t CPU::read_reset_vec(){
@@ -65,8 +65,8 @@ uint16_t CPU::read_reset_vec(){
 
 void CPU::write_brk_vec(uint16_t data){
 	VNES_LOG::LOG(VNES_LOG::WARN, "write_brk_vec(): Check that I'm implemented correctly!");
-    ram.write(RAM::VEC_ADDR::BRK_VEC, (uint8_t)data); // LB
-    ram.write(RAM::VEC_ADDR::BRK_VEC + 1, (uint8_t)(data >> 8)); // HB
+    write_mem(RAM::VEC_ADDR::BRK_VEC, (uint8_t)data); // LB
+    write_mem(RAM::VEC_ADDR::BRK_VEC + 1, (uint8_t)(data >> 8)); // HB
 }
 
 uint16_t CPU::read_brk_vec(){
@@ -102,30 +102,32 @@ void CPU::release_reset(){
 	VNES_LOG::LOG(VNES_LOG::ERROR, "Reset signal is not implemented!");
 }
 
-// Interrupt routines are different for maskable and non-maskable
-// interrupts. However, they follow the same structure and the return-from-
-// interrupt sequence is always the same (see: return_from_interrupt())
+// Interrupt routines differ for maskable (BRK, IRQ) and non-maskable
+// interrupts. However, the return-from-interrupt sequence 
+// is the same (see: RTI())
 void CPU::raise_interrupt(bool maskable){
-    if(maskable && interrupt_disable_f){
-        return;
-    }
-    push_stack((uint8_t)(program_counter >> 8)); // store PCH
-    push_stack((uint8_t)program_counter); // store PCL
-    push_stack(status_as_int()); // since I must have been low for the interrupt
-                                 // and P is stored before I is asserted, 
-                                 // I will always be deasserted by RTI
-    interrupt_disable_f = 1; // the interrupt program may reassert this later
+    // since I must have been low for the interrupt
+    // and P is stored before I is asserted, 
+    // I will always be deasserted by RTI
+    auto push_program_counter = [this](){
+        push_stack(program_counter >> 8);
+        push_stack(program_counter);
+    };
 
     if(maskable){
+        if(interrupt_disable_f){
+            return;
+        }
+        push_program_counter();
+        b_flag_f = 1;
+        push_stack(status_as_int());
         program_counter = read_brk_vec();
     }else{
+        push_program_counter();
+        push_stack(status_as_int());
         program_counter = read_nmi_vec();
     }
-}
-
-void CPU::return_from_interrupt(){
-    VNES_LOG::LOG(VNES_LOG::FATAL, "Return from interrupt is not yet implemented");
-    VNES_ASSERT(0 && "Return from interrupt is not yet implemented");
+    interrupt_disable_f = 1;
 }
 
 uint8_t CPU::status_as_int(){ 
@@ -1332,7 +1334,7 @@ void CPU::SBC(){
     uint8_t sign_2_subtractor = ((data + carry_f) ^ 0xFF) + 1;
     uint16_t result = (uint16_t)accumulator + sign_2_subtractor;
 
-    carry_f     = ((int8_t)result >= 0); // carry_f = result[8]
+    carry_f     = (( int8_t)result >= 0); // carry_f = result[8]
     negative_f  = ((uint8_t)result & 0b10000000);
     zero_f      = ((uint8_t)result == 0);
     int overflow_check = (int)(int8_t)accumulator - (int)(int8_t)data - carry_f; // weird casting gets signs and bit width correct
@@ -1494,15 +1496,23 @@ void CPU::ROR_eACC(){
 
 /* Jumps & Calls */
 void CPU::JMP(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    program_counter = (uint16_t)read_mem(++program_counter);
+    program_counter |= (uint16_t)read_mem(++program_counter >> 8);
 }
 
 void CPU::JSR(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    push_stack((program_counter + 2) >> 8);
+    push_stack(program_counter + 2);
+
+    uint8_t PCL = read_mem(++program_counter);
+    uint8_t PCH = read_mem(++program_counter);
+    program_counter = ((uint16_t)PCH << 8 | PCL);
 }
 
 void CPU::RTS(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    uint8_t PCL = pop_stack();
+    uint8_t PCH = pop_stack();
+    program_counter = ((uint16_t)PCH << 8 | PCL);
 }
 
 
@@ -1572,7 +1582,9 @@ void CPU::SEI(){
 
 /* System Functions */
 void CPU::BRK(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    VNES_LOG::LOG(VNES_LOG::WARN, "Should BRK() handled the byte after the BRK opcode? Investigate this!");
+    program_counter += 2;
+    raise_interrupt(true);
 }
 
 void CPU::NOP(){
@@ -1580,7 +1592,10 @@ void CPU::NOP(){
 }
 
 void CPU::RTI(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    set_status_reg(pop_stack());
+    uint8_t PCL = (pop_stack());
+    uint8_t PCH = pop_stack();
+    program_counter = ((uint16_t)PCH << 8) | PCL;
 }
 
 

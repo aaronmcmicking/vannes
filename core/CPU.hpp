@@ -25,8 +25,8 @@ class CPU{
             ZPGY        // Zeropage, Y-indexed
         };
 
-        enum CPU_INSTR : uint8_t{
-            /* FORMAT:
+        enum OPCODE : uint8_t{
+            /* LEGEND:
              * OPCODE_ADDRMODE = HEX // OPERATION, UPDATED FLAGS
              */
             /* Load/Store */

@@ -15,7 +15,7 @@ int main(){
 
     RAM ram = RAM();
     CPU cpu = CPU(ram);
-    (void)cpu;
+    (void)cpu; // silence compiler warnings
 
     return 0;
 }

@@ -15,7 +15,7 @@ enum Severity{
     FATAL // fatal should crash the program immediately 
 };
 
-void log(const char* _file, int _line, Severity severity, const char* log_str, ...){
+void log(const char* __file__, int __line__, Severity severity, const char* log_str, ...){
     switch(severity){
         case INFO:
             printf("INFO  ");
@@ -34,7 +34,7 @@ void log(const char* _file, int _line, Severity severity, const char* log_str, .
             break;
     }
 
-    printf("%s:%d ", _file, _line);
+    printf("%s:%d ", __file__, __line__);
     va_list argptr;
     va_start(argptr, log_str);
     vfprintf(stdout, log_str, argptr);
