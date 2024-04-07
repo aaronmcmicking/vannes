@@ -451,6 +451,7 @@ class CPU{
         void RTS(); 	                        // Return from subroutine 	 - IMPLIED MODE ONLY
 
         /* Branches */
+        void branch(bit condition); // helper function for generic branch behaviour
         void BCC(); 	// Branch if carry flag clear    - RELATIVE MODE ONLY
         void BCS(); 	// Branch if carry flag set      - RELATIVE MODE ONLY
         void BEQ(); 	// Branch if zero flag set 	     - RELATIVE MODE ONLY

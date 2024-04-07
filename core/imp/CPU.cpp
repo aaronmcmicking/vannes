@@ -205,7 +205,7 @@ uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode){
             addr |= (read_mem(++zpg_ptr) << 8);
 			break;
 		case REL:
-            addr = ++program_counter;
+            addr = read_mem(++program_counter);
 			break;
 		case ZPG:
             addr |= read_mem(++program_counter);
@@ -1368,78 +1368,87 @@ void CPU::RTS(){
 
 
 /* Branches */
+void CPU::branch(bit condition){
+    if(condition){
+        int8_t rel_addr = fetch_address(REL);
+        program_counter += rel_addr;
+    }else{
+        program_counter++;
+    }
+}
+
 void CPU::BCC(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    branch(!carry_f);
 }
 
 void CPU::BCS(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    branch(carry_f);
 }
 
 void CPU::BEQ(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    branch(zero_f);
 }
 
 void CPU::BMI(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    branch(negative_f);
 }
 
 void CPU::BNE(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    branch(!zero_f);
 }
 
 void CPU::BPL(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    branch(!negative_f);
 }
 
 void CPU::BVC(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    branch(!overflow_f);
 }
 
 void CPU::BVS(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    branch(overflow_f);
 }
 
 
 /* Status Flag Changes */
 void CPU::CLC(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    carry_f = 0;
 }
 
 void CPU::CLD(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    decimal_f = 0;
 }
 
 void CPU::CLI(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    interrupt_disable_f = 0;
 }
 
 void CPU::CLV(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    overflow_f = 0;
 }
 
 void CPU::SEC(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    carry_f = 1;
 }
 
 void CPU::SED(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    decimal_f = 1;
 }
 
 void CPU::SEI(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    interrupt_disable_f = 1;
 }
 
 
 /* System Functions */
 void CPU::BRK(){
-    VNES_LOG::LOG(VNES_LOG::WARN, "Should BRK() handled the byte after the BRK opcode? Investigate this!");
+    VNES_LOG::LOG(VNES_LOG::WARN, "Should BRK() handled the byte after the BRK opcode (byte is 'reason for interrupt/brk')? Investigate this!");
     program_counter += 2;
     raise_interrupt(true);
 }
 
 void CPU::NOP(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED INSTRUCTION");
+    VNES_LOG::LOG(VNES_LOG::ERROR, "NOP is not implemented since cycles are unimplemented. NOP should consume a CPU cycle.");
 }
 
 void CPU::RTI(){
