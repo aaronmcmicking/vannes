@@ -10,14 +10,18 @@ class RAM{
         uint8_t read(uint16_t addr);
         void    write(uint16_t addr, uint8_t data);
 
-        // The first address of the the reserved 16 bit vectors.
-        // The lower 8 bits are stored at ADDR and the higher at
+        // The addresses of the the reserved 16 bit vectors, in little
+        // endian format. The lower 8 bits are stored at ADDR and the higher at
         // ADDR+1
         enum VEC_ADDR : uint16_t{
             NMI_VEC = 0xFFFA,
             RESET_VEC = 0xFFFC,
             BRK_VEC = 0xFFFE
         };
+
+        void write_brk_vec(uint16_t data);
+        void write_nmi_vec(uint16_t data);
+        void write_reset_vec(uint16_t data);
 
     private:
         /*
@@ -29,12 +33,13 @@ class RAM{
          * 0x2008 - 0x3FFF: Mirror of PPU registers
          * 0x4000 - 0x400F: APU registers
          * 0x4010 - 0x4017: DMC, joystick, APU registers
+         * 0x4018 - 0x401A: Unused (scrapped functionality), sometimes testing registers (disabled in real use)
          * 0x4020 - 0x5FFF: Cartridge (maybe mapper registers)
          * 0x6000 - 0x7FFF: Cartridge RAM (maybe battery-backed)
+         * 0x8000 - 0xFFFF: PRG ROM (maybe bank-switched)
          * 0xFFFA - 0xFFFB: NMI Vector
          * 0xFFFC - 0xFFFD: Reset Vector
          * 0xFFFE - 0xFFFF: BRK Vector
-         * 0x8000 - 0xFFFF: PRG ROM (maybe bank-switched)
          */
         uint8_t mem[65536];
 };

@@ -1,13 +1,53 @@
 #pragma once
 
 #include <stdint.h>
-#include "imp/RAM.cpp"
-#include "../common/typedefs.hpp"
+#include "../RAM.cpp"
+#include "../PPU.cpp"
+#include "../../common/typedefs.hpp"
 
 // The NES CPU is a modified version of the MOS 6502 called the Ricoh 2A03.
 // It removes some instructions from the 6502 and includes and APU in the CPU.
+
+// TODO: clean up switching between public and private
 class CPU{
     public:
+        CPU(RAM& _ram, PPU& ppu_);
+        void step();
+
+    private:
+        RAM& ram;
+        PPU& ppu;
+
+        /* registers */
+        uint16_t program_counter;
+        uint8_t stack_pointer;
+        uint8_t accumulator;
+        uint8_t index_X;
+        uint8_t index_Y;
+
+        /* status register */
+        /* The in hardware status register is a single byte value with six
+         * 1-bit flags. Bits 4 and 5 are officially unused: Bit 5 is always
+         * driven to 1 and bit 4 is known as the "B flag" and is controlled by
+         * CPU side effects (see https://www.nesdev.org/wiki/Status_flags#The_B_flag)
+         */
+        bit carry_f;
+        bit zero_f;
+        bit interrupt_disable_f;
+        bit b_flag_f;
+        bit decimal_f;
+        bit overflow_f;
+        bit negative_f;
+    public: 
+        uint8_t status_as_int(); // returns the packed status register
+        void set_status_reg(uint8_t data); 
+    private:
+
+        uint64_t frame_cycles;
+
+        uint8_t fetch_instruction();
+        int     execute_instruction(uint8_t instruction);
+
         // see https://www.masswerk.at/6502/6502_instruction_set.html#ADC
         enum ADDRESSING_MODE{
             ACC = 1,    // Accumulator 
@@ -25,6 +65,32 @@ class CPU{
             ZPGY        // Zeropage, Y-indexed
         };
 
+        uint16_t    fetch_address(enum ADDRESSING_MODE mode);
+        uint8_t     read_mem(uint16_t addr);
+        void        write_mem(uint16_t addr, uint8_t data);
+        void        push_stack(uint8_t data);
+        uint8_t     pop_stack();
+
+        // see https://web.archive.org/web/20200129081101/http://users.telenet.be:80/kim1-6502/6502/proman.html
+        // for power-up sequence details
+        void power_up();
+        void engage_reset();
+        void release_reset();
+
+    public:
+        void        write_brk_vec(uint16_t data);
+        void        write_nmi_vec(uint16_t data);
+        void        write_reset_vec(uint16_t data);
+    private:
+        uint16_t    read_nmi_vec();
+        uint16_t    read_reset_vec();
+        uint16_t    read_brk_vec();
+
+        void raise_interrupt(bool maskable);
+        void return_from_interrupt();
+
+
+    public:
         enum OPCODE : uint8_t{
             /* LEGEND:
              * OPCODE_ADDRMODE = HEX // OPERATION, UPDATED FLAGS - ADDR MODE (if exclusive)
@@ -334,63 +400,7 @@ class CPU{
             USBC_IMM_ILL = 0xEB
         };
 
-    public:
-        CPU(RAM& _ram);
-
     private:
-        RAM& ram;
-
-        /* registers */
-        uint16_t program_counter;
-        uint8_t stack_pointer;
-        uint8_t accumulator;
-        uint8_t index_X;
-        uint8_t index_Y;
-
-        /* status register */
-        /* The in hardware status register is a single byte value with six
-         * 1-bit flags. Bits 4 and 5 are officially unused: Bit 5 is always
-         * driven to 1 and bit 4 is known as the "B flag" and is controlled by
-         * CPU side effects (see https://www.nesdev.org/wiki/Status_flags#The_B_flag)
-         */
-        bit carry_f;
-        bit zero_f;
-        bit interrupt_disable_f;
-        bit b_flag_f;
-        bit decimal_f;
-        bit overflow_f;
-        bit negative_f;
-        uint8_t status_as_int(); // returns the packed status register
-        void set_status_reg(uint8_t data); 
-
-        uint64_t cycles;
-
-        uint8_t fetch_instruction();
-        void    execute_instruction(uint8_t instruction);
-
-        uint16_t    fetch_address(enum ADDRESSING_MODE mode);
-
-        uint8_t read_mem(uint16_t addr);
-        void    write_mem(uint16_t addr, uint8_t data);
-        void    push_stack(uint8_t data);
-        uint8_t pop_stack();
-
-        // see https://web.archive.org/web/20200129081101/http://users.telenet.be:80/kim1-6502/6502/proman.html
-        // for power-up sequence details
-        void power_up();
-        void engage_reset();
-        void release_reset();
-
-        void        write_nmi_vec(uint16_t data);
-        uint16_t    read_nmi_vec();
-        void        write_reset_vec(uint16_t data);
-        uint16_t    read_reset_vec();
-        void        write_brk_vec(uint16_t data);
-        uint16_t    read_brk_vec();
-
-        void raise_interrupt(bool maskable);
-        void return_from_interrupt();
-
         /* INSTRUCTIONS */
         /* Load/Store */
         void LDA(enum ADDRESSING_MODE mode);    // Load Accumulator 	N,Z

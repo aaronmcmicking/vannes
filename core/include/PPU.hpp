@@ -16,5 +16,7 @@ class PPU{
             OAM_DMA     = 0x4014   // W 	Sprite Page DMA Transfer 
         };
 
+        void do_cycle();
+
     private:
 };

@@ -1,21 +1,28 @@
 #pragma once
 
 #include <iostream>
-#include "../CPU.hpp"
-#include "../../common/nes_assert.hpp"
-#include "../../common/log.hpp"
+#include "include/CPU.hpp"
+#include "../common/nes_assert.hpp"
+#include "../common/log.hpp"
 
-CPU::CPU(RAM& _ram): ram {_ram}{
+CPU::CPU(RAM& _ram, PPU& ppu_): ram {_ram}, ppu {ppu_}{
     VNES_LOG::LOG(VNES_LOG::INFO, "Constructing CPU...");
+    power_up();
+}
+
+void CPU::step(){
+    uint8_t opcode = fetch_instruction();
+    int cycles = execute_instruction(opcode);
+    program_counter++;
+
+    for(int i = 0; i < cycles*3; i++){ // 1 cpu cycle = 3 ppu cycles
+        ppu.do_cycle();
+    }
 }
 
 inline uint8_t CPU::fetch_instruction(){
     return read_mem(program_counter);
 }
-
-//inline void CPU::set_addr_mode(enum CPU_ADDRESSING_MODE mode){
-//    addr_mode = mode;
-//}
 
 inline uint8_t CPU::read_mem(uint16_t addr){
     return ram.read(addr);
@@ -25,11 +32,11 @@ inline void CPU::write_mem(uint16_t addr, uint8_t data){
     ram.write(addr, data);
 }
 
-void CPU::push_stack(uint8_t data){
+inline void CPU::push_stack(uint8_t data){
     write_mem(stack_pointer--, data);
 }
 
-uint8_t CPU::pop_stack(){
+inline uint8_t CPU::pop_stack(){
     return read_mem(++stack_pointer);
 }
 
@@ -85,11 +92,11 @@ void CPU::power_up(){
     // the 8th cycles when the start-up sequence releases control. The other
     // 5 cyles consist of 2 NOPs and 3 stack operations, although these
     // have no effect as the processor is in a disabled state during start-up.
-	VNES_LOG::LOG(VNES_LOG::INFO, "Entered Power-Up sequence");
+	VNES_LOG::LOG(VNES_LOG::INFO, "Entered power-up sequence");
     VNES_LOG::LOG(VNES_LOG::WARN, "Check that I'm implemented right!");
     interrupt_disable_f = 1;
     program_counter = read_reset_vec();
-    VNES_LOG::LOG(VNES_LOG::INFO, "Loaded RESET Vec to PC. RESET Vec was %d. Can now enter normal execution cycle", read_reset_vec());
+    VNES_LOG::LOG(VNES_LOG::INFO, "Loaded RESET Vec to PC. RESET Vec was %x. Power-up sequence done", read_reset_vec());
 }
 
 void CPU::engage_reset(){
@@ -226,7 +233,8 @@ uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode){
     return addr;
 }
 
-void CPU::execute_instruction(uint8_t instruction){
+// returns cycles passed
+int CPU::execute_instruction(uint8_t instruction){
     switch(instruction){
         /* Load/Store */
         case LDA_XIND:    // Load Accumulator 	N,Z
@@ -1047,6 +1055,8 @@ void CPU::execute_instruction(uint8_t instruction){
             VNES_LOG::LOG(VNES_LOG::FATAL, "Got unreachable instruction! How is this possible??? Bad instruction was %s\n", instruction);
             break;
     }
+    VNES_LOG::LOG(VNES_LOG::ERROR, "Cycle counting not implemented yet! Returning 1 cycle passed");
+    return 1;
 } // execute_instruction
 
 

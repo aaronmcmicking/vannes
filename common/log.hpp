@@ -9,14 +9,22 @@ namespace VNES_LOG{
 #define LOG(severity, format, ...) log(__FILE__, __LINE__, severity, format, ##__VA_ARGS__)
 
 enum Severity{
-    INFO = 1,
+    DEBUG = 1,
+    INFO,
     WARN,
     ERROR,
-    FATAL // fatal should crash the program immediately 
+    FATAL // fatals usually crash the program, but that is the responsibility of the caller 
 };
 
+// the min level to output log
+Severity log_level = (Severity)1;
+
 void log(const char* __file__, int __line__, Severity severity, const char* log_str, ...){
+    if(severity < log_level) return;
     switch(severity){
+        case DEBUG:
+            printf("DEBUG ");
+            break;
         case INFO:
             printf("INFO  ");
             break;
