@@ -7,7 +7,6 @@
 
 class RAM{
     public:
-        //RAM();
         RAM(Cartridge& cart);
 
         uint8_t read(uint16_t addr);
@@ -42,6 +41,6 @@ class RAM{
          * 0xFFFC - 0xFFFD: Reset Vector
          * 0xFFFE - 0xFFFF: BRK Vector
          */
-        static const int INTERNAL_MEM_ITEMS = 16416;
+        static const int INTERNAL_MEM_ITEMS = 0x4020;
         uint8_t mem[INTERNAL_MEM_ITEMS];
 };

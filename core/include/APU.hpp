@@ -2,8 +2,6 @@
 
 class APU{
     public:
-    
-
         // see https://www.nesdev.org/wiki/APU#Registers 
         // UNUSED ADDRESSES: 0x4009, 0x400D, 0x4014
         enum APU_regs{
@@ -15,11 +13,11 @@ class APU{
                 SQ2_SWEEP  = 0x4005, 	 // epppnsss 	Square wave 2, sweep
                 SQ2_LO 	   = 0x4006, 	 // pppppppp 	Square wave 2, period (LSB)
                 SQ2_HI 	   = 0x4007, 	 // xxxxxppp 	Square wave 2, period (MSB) and counter load
-                TRI_LINEAR = 0x4008, 	 //    crrrrrrr 	Triangle wave, control and counter load
+                TRI_LINEAR = 0x4008, 	 // crrrrrrr 	Triangle wave, control and counter load
                 TRI_LO 	   = 0x400A, 	 // pppppppp 	Triangle wave, period (LSB)
                 TRI_HI 	   = 0x400B, 	 // xxxxxppp 	Triangle wave, period (MSB) and counter load
                 NOISE_VOL  = 0x400C, 	 // ..lcvvvv 	Noise generator, flags and volume
-                NOISE_CTRL = 0x400E, 	 //    t...pppp 	Noise generator, tone and period
+                NOISE_CTRL = 0x400E, 	 // t...pppp 	Noise generator, tone and period
                 NOISE_LEN  = 0x400F, 	 // lllll... 	Noise generator, counter load
                 DMC_FREQ   = 0x4010, 	 // il..rrrr 	DMC: IRQ, flags, and rate
                 DMC_RAW    = 0x4011, 	 // .xxxxxxx 	DMC: direct load

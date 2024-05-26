@@ -18,11 +18,11 @@ class Cartridge{
         void dump_rom();
 
         uint8_t read(uint16_t addr); // reads from mapper
+        void    write(uint16_t addr, uint8_t data); // write to cart RAM, sometimes battery backed 
 
     private:
-        std::unique_ptr<Mapper> mapper; // ptr to smooth out initialization weirdness
+        std::unique_ptr<Mapper> mapper; 
         void set_mapper();
-        std::unique_ptr<Mapper> get_default_mapper();
 
         // see https://www.nesdev.org/wiki/INES for explanations of flags
         // and other header fields

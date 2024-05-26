@@ -8,11 +8,7 @@
 #include "../common/nes_assert.hpp"
 #include "../mappers/mapper_includes.hpp"
 
-Cartridge::Cartridge(std::string filename): mapper {} {
-    // This method of setting the default mapper with a unique_ptr might lead 
-    // to undefined behaviour since the default object is destroyed before the 
-    // end of constructor, but we will simply not access the mapper (only 
-    // assigned) and not worry about it :3
+Cartridge::Cartridge(std::string filename): mapper {nullptr} {
     load_rom(filename);
     set_mapper(); 
 }
@@ -20,20 +16,15 @@ Cartridge::Cartridge(std::string filename): mapper {} {
 void Cartridge::set_mapper(){
     switch(mapper_number){
         case 0:
-            mapper = std::make_unique<Mapper000>();
+            mapper = make_unique<Mapper000>(prg_rom, chr_rom);
             break;
         default:
             VNES_LOG::LOG(VNES_LOG::WARN, "Mapper number %d not recognized, setting default Mapper000", mapper_number);
-            mapper = std::make_unique<Mapper000>();
+            mapper = make_unique<Mapper000>(prg_rom, chr_rom);
             break;
     }
     VNES_LOG::LOG(VNES_LOG::INFO, "Set cartridge mapper to %s", mapper->name.c_str());
 }
-
-//Mapper Cartridge::get_mapper(){
-//    Mapper000 mapper {};
-//    return mapper;
-//}
 
 void Cartridge::load_rom(std::string filename){
     VNES_LOG::LOG(VNES_LOG::INFO, "Loading ROM.");
@@ -69,8 +60,7 @@ void Cartridge::load_rom(std::string filename){
         && header.nes_title[2] == 0x53  
         && header.nes_title[3] == 0x1A) // 0x1A is MS DOS end-of-line
     ){
-        VNES_LOG::LOG(VNES_LOG::WARN, "Didn't find 'NES' at start of ROM file as expected by iNES standard. Is the ROM malformed? Continuing with execution, but there may have actually been a critical error!");
-        printf("%x%x %x%x\n", header.nes_title[0], header.nes_title[1], header.nes_title[2], header.nes_title[3]);
+        VNES_LOG::LOG(VNES_LOG::WARN, "Didn't find 'NES' at start of ROM file as expected by iNES standard. Instead got %x %x %x %x. Is the ROM malformed? Continuing with execution, but there may have actually been a critical error!", header.nes_title[0], header.nes_title[1], header.nes_title[2], header.nes_title[3]);
     }
 
     // check header format
@@ -141,25 +131,34 @@ uint8_t Cartridge::read(uint16_t addr){
     using namespace VNES_LOG;
     switch(addr){
         case 0x0000 ... 0x401F:
-            LOG(ERROR, "Cartridge memory read at out-of-bounds address %x (expected range is 0x4020 to 0xFFFF). Returning 0x0", addr);
+            LOG(ERROR, "Cartridge memory read at out-of-bounds address 0x%x (expected range is 0x4020 to 0xFFFF). Returning 0x0", addr);
             return 0;
             break;
-        case 0x4020 ... 0x7FFF:
-            return chr_rom[addr % 0x4020];
+        case 0x4020 ... 0xFFFF:
+            return mapper->read(addr);
             break;
-        case 0x8000 ... 0xFFFF:
-            return prg_rom[addr % 0x8000];
-            break;
-        /* TODO:
-         * case 0x4020 ... 0xFFFF:
-         *      return mapper.read(addr);
-         *      break;
-         */
         default:
-            LOG(ERROR, "Cartridge memory read at out-of-bounds address %x (expected range is 0x4020 to 0xFFFF). Returning 0x0", addr);
+            LOG(ERROR, "Cartridge memory read at out-of-bounds address 0x%x (expected range is 0x4020 to 0xFFFF). Returning 0x0", addr);
             return 0;
             break;
     }
 }
 
+void Cartridge::write(uint16_t addr, uint8_t data){
+    using namespace VNES_LOG;
+    switch(addr){
+        case 0x0000 ... 0x401F:
+            LOG(ERROR, "Cartridge memory write at out-of-bounds address 0x%x (expected range is 0x4020 to 0x8000). Write has no effect", addr);
+            break;
+        case 0x4020 ... 0x7FFF:
+            mapper->write(addr, data);
+            break;
+        case 0x8000 ... 0xFFFF:
+            LOG(ERROR, "Cartridge memory write to read-only address 0x%x (expected range is 0x4020 to 0x8000). Write has no effect", addr);
+            break;
+        default:
+            LOG(ERROR, "Cartridge memory write at out-of-bounds address 0x%x (expected range is 0x4020 to 0x8000). Write has no effect", addr);
+            break;
+    }
+}
 

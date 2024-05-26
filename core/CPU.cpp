@@ -12,7 +12,7 @@ CPU::CPU(RAM& _ram, PPU& _ppu): ram {_ram}, ppu {_ppu}{
 
 void CPU::step(){
     uint8_t opcode = fetch_instruction();
-    VNES_LOG::LOG(VNES_LOG::DEBUG, "Fetched opcode %x from address %x", opcode, program_counter);
+    VNES_LOG::LOG(VNES_LOG::DEBUG, "Fetched opcode 0x%x from address 0x%x", opcode, program_counter);
     int cycles = execute_instruction(opcode);
     program_counter++;
 
@@ -104,7 +104,7 @@ void CPU::power_up(){
 void CPU::reset(){
     VNES_LOG::LOG(VNES_LOG::INFO, "Received reset signal");
     program_counter = read_reset_vec();
-    VNES_LOG::LOG(VNES_LOG::INFO, "Loaded RESET Vec to PC. RESET Vec was %x.", read_reset_vec());
+    VNES_LOG::LOG(VNES_LOG::INFO, "Loaded RESET Vec to PC. RESET Vec was 0x%x.", read_reset_vec());
 }
 
 //void CPU::engage_reset(){
@@ -243,7 +243,7 @@ uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode){
 
 // returns cycles passed
 int CPU::execute_instruction(uint8_t instruction){
-    VNES_LOG::LOG(VNES_LOG::DEBUG, "Executing instruction %x", instruction);
+    VNES_LOG::LOG(VNES_LOG::DEBUG, "Executing instruction 0x%x", instruction);
     switch(instruction){
         /* Load/Store */
         case LDA_XIND:    // Load Accumulator 	N,Z

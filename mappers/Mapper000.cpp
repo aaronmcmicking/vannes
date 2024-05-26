@@ -3,41 +3,48 @@
 #include "Mapper.hpp"
 #include "../common/log.hpp"
 #include "../common/nes_assert.hpp"
+#include <vector>
 
 class Mapper000 : public Mapper{
-    //uint16_t map(uint16_t addr) override {
-    //    switch(addr){
-    //        case 0x0000 ... 0x401F:
-    //            //VNES_LOG::LOG(VNES_LOG::FATAL, "Address 0x%h is below 0x4020 and cannot be mapped by mapper", addr);
-    //            //VNES_ASSERT(0 && "Mapper couldn't map out of range address");
-    //            return addr;
-    //        case 0x4020 ... 0xFFFF:
-    //            if(addr < 0x6000){
-    //                return addr % 4020;
-    //            }else if(addr < 0x8000){
-    //                return addr % 0x6000;
-    //            }else{
-    //                return addr % 0x8000;
-    //            }
-    //        default:
-    //            VNES_LOG::LOG(VNES_LOG::FATAL, "Unreachable??? Address 0x%h was not covered by mapper", addr);
-    //            VNES_ASSERT(0 && "Unreachable");
-    //    }
-    //}
     public:
-        Mapper000(){ name = "Mapper000"; }
+        Mapper000(std::vector<uint8_t>& prg_rom, std::vector<uint8_t>& chr_rom): 
+            prg_rom {prg_rom}, chr_rom {chr_rom}
+        { name = "Mapper000"; }
 
         uint8_t read(uint16_t addr) override {
             using namespace VNES_LOG;
-            LOG(WARN, "Mapper000.read(addr) called but has no implementation, returning 0");
-            (void) addr;
-            return 0;
+
+            switch(addr){
+                case 0x4020 ... 0x7FFF:
+                    return chr_rom[addr % 0x4020];
+                    break;
+                case 0x8000 ... 0xFFFF:
+                    return prg_rom[addr % 0x8000];
+                    break;
+                default:
+                    LOG(ERROR, "Mapper cannot honour cartridge memory read at out-of-bounds address 0x%x (expected range is 0x4020 to 0xFFFF). Returning 0", addr);
+                    return 0;
+                    break;
+            }
         }
 
         void write(uint16_t addr, uint8_t data) override {
             using namespace VNES_LOG;
-            (void) addr;
-            (void) data;
-            LOG(WARN, "Mapper000.write(addr, data) called but has no implementation (no effect)");
+            switch(addr){
+                case 0x4020 ... 0x7FFF:
+                    chr_rom[addr % 0x4020] = data;
+                    break;
+                case 0x8000 ... 0xFFFF:
+                    LOG(ERROR, "Mapper cannot write to ROM address 0x%x. Write call has no effect. Data was 0x%x", addr, data);
+                    break;
+                default:
+                    LOG(ERROR, "Mapper cannot write to cartridge memory at out-of-bounds 0x%x (expected range is 0x4020 to 0x8000)", addr);
+                    break;
+            }
         }
+
+    private:
+        // provided by constructor
+        std::vector<uint8_t>& prg_rom;
+        std::vector<uint8_t>& chr_rom;
 };
