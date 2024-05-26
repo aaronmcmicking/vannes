@@ -1,12 +1,39 @@
+#pragma once
+
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include "cartridge.hpp"
 #include "../common/log.hpp"
 #include "../common/nes_assert.hpp"
+#include "../mappers/mapper_includes.hpp"
 
-Cartridge::Cartridge(std::string filename){
+Cartridge::Cartridge(std::string filename): mapper {} {
+    // This method of setting the default mapper with a unique_ptr might lead 
+    // to undefined behaviour since the default object is destroyed before the 
+    // end of constructor, but we will simply not access the mapper (only 
+    // assigned) and not worry about it :3
     load_rom(filename);
+    set_mapper(); 
 }
+
+void Cartridge::set_mapper(){
+    switch(mapper_number){
+        case 0:
+            mapper = std::make_unique<Mapper000>();
+            break;
+        default:
+            VNES_LOG::LOG(VNES_LOG::WARN, "Mapper number %d not recognized, setting default Mapper000", mapper_number);
+            mapper = std::make_unique<Mapper000>();
+            break;
+    }
+    VNES_LOG::LOG(VNES_LOG::INFO, "Set cartridge mapper to %s", mapper->name.c_str());
+}
+
+//Mapper Cartridge::get_mapper(){
+//    Mapper000 mapper {};
+//    return mapper;
+//}
 
 void Cartridge::load_rom(std::string filename){
     VNES_LOG::LOG(VNES_LOG::INFO, "Loading ROM.");
@@ -37,7 +64,7 @@ void Cartridge::load_rom(std::string filename){
     header.padding[5]               = file.get();         
 
     // check header tag
-    if(!(header.nes_title[0] == 0x4E      
+    if(  !(header.nes_title[0] == 0x4E      
         && header.nes_title[1] == 0x45 
         && header.nes_title[2] == 0x53  
         && header.nes_title[3] == 0x1A) // 0x1A is MS DOS end-of-line
@@ -111,11 +138,28 @@ void Cartridge::dump_rom(){
 }
 
 uint8_t Cartridge::read(uint16_t addr){
-    if(addr < 0x8000){
-        VNES_LOG::LOG(VNES_LOG::ERROR, "Cartridge memory read at out-of-bounds address %x (expected range is 0x8000 to 0xFFFF). Reading %x", addr, addr%0x800);
+    using namespace VNES_LOG;
+    switch(addr){
+        case 0x0000 ... 0x401F:
+            LOG(ERROR, "Cartridge memory read at out-of-bounds address %x (expected range is 0x4020 to 0xFFFF). Returning 0x0", addr);
+            return 0;
+            break;
+        case 0x4020 ... 0x7FFF:
+            return chr_rom[addr % 0x4020];
+            break;
+        case 0x8000 ... 0xFFFF:
+            return prg_rom[addr % 0x8000];
+            break;
+        /* TODO:
+         * case 0x4020 ... 0xFFFF:
+         *      return mapper.read(addr);
+         *      break;
+         */
+        default:
+            LOG(ERROR, "Cartridge memory read at out-of-bounds address %x (expected range is 0x4020 to 0xFFFF). Returning 0x0", addr);
+            return 0;
+            break;
     }
-    return prg_rom[addr % 0x8000];
-    // TODO: return value from Mapper instead of raw rom
 }
 
 

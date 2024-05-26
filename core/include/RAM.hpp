@@ -3,10 +3,13 @@
 // see https://9bitworkshop.com/blog/platforms/nintendo-nes.md.html
 
 #include <stdint.h>
+#include "../../cartridge/cartridge.hpp"
 
 class RAM{
     public:
-        RAM();
+        //RAM();
+        RAM(Cartridge& cart);
+
         uint8_t read(uint16_t addr);
         void    write(uint16_t addr, uint8_t data);
 
@@ -19,11 +22,9 @@ class RAM{
             BRK_VEC = 0xFFFE
         };
 
-        void write_brk_vec(uint16_t data);
-        void write_nmi_vec(uint16_t data);
-        void write_reset_vec(uint16_t data);
-
     private:
+        Cartridge& cart;
+
         /*
          * 0x0000 - 0x00FF: RAM (zero-page)
          * 0x0100 - 0x01FF: RAM (CPU stack)
@@ -35,11 +36,12 @@ class RAM{
          * 0x4010 - 0x4017: DMC, joystick, APU registers
          * 0x4018 - 0x401A: Unused (scrapped functionality), sometimes testing registers (disabled in real use)
          * 0x4020 - 0x5FFF: Cartridge (maybe mapper registers)
-         * 0x6000 - 0x7FFF: Cartridge RAM (maybe battery-backed)
-         * 0x8000 - 0xFFFF: PRG ROM (maybe bank-switched)
+         * 0x6000 - 0x7FFF: Cartridge RAM (may be bank-switched, battery-backed)
+         * 0x8000 - 0xFFFF: Cartridge ROM (may be bank-switched)
          * 0xFFFA - 0xFFFB: NMI Vector
          * 0xFFFC - 0xFFFD: Reset Vector
          * 0xFFFE - 0xFFFF: BRK Vector
          */
-        uint8_t mem[65536];
+        static const int INTERNAL_MEM_ITEMS = 16416;
+        uint8_t mem[INTERNAL_MEM_ITEMS];
 };

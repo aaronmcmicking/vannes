@@ -5,13 +5,14 @@
 #include "../common/nes_assert.hpp"
 #include "../common/log.hpp"
 
-CPU::CPU(RAM& _ram, PPU& ppu_): ram {_ram}, ppu {ppu_}{
+CPU::CPU(RAM& _ram, PPU& _ppu): ram {_ram}, ppu {_ppu}{
     VNES_LOG::LOG(VNES_LOG::INFO, "Constructing CPU...");
     power_up();
 }
 
 void CPU::step(){
     uint8_t opcode = fetch_instruction();
+    VNES_LOG::LOG(VNES_LOG::DEBUG, "Fetched opcode %x from address %x", opcode, program_counter);
     int cycles = execute_instruction(opcode);
     program_counter++;
 
@@ -95,21 +96,28 @@ void CPU::power_up(){
 	VNES_LOG::LOG(VNES_LOG::INFO, "Entered power-up sequence");
     VNES_LOG::LOG(VNES_LOG::WARN, "Check that I'm implemented right!");
     interrupt_disable_f = 1;
+    //program_counter = read_reset_vec();
+    reset();
+    VNES_LOG::LOG(VNES_LOG::INFO, "Power-up sequence done");
+}
+
+void CPU::reset(){
+    VNES_LOG::LOG(VNES_LOG::INFO, "Received reset signal");
     program_counter = read_reset_vec();
-    VNES_LOG::LOG(VNES_LOG::INFO, "Loaded RESET Vec to PC. RESET Vec was %x. Power-up sequence done", read_reset_vec());
+    VNES_LOG::LOG(VNES_LOG::INFO, "Loaded RESET Vec to PC. RESET Vec was %x.", read_reset_vec());
 }
 
-void CPU::engage_reset(){
-	VNES_LOG::LOG(VNES_LOG::INFO, "Engaged reset signal");
-	VNES_LOG::LOG(VNES_LOG::ERROR, "Reset signal is not implemented!");
-}
+//void CPU::engage_reset(){
+//	VNES_LOG::LOG(VNES_LOG::INFO, "Engaged reset signal");
+//	VNES_LOG::LOG(VNES_LOG::ERROR, "Reset signal is not implemented!");
+//}
+//
+//void CPU::release_reset(){
+//	VNES_LOG::LOG(VNES_LOG::INFO, "Releasing reset signal");
+//	VNES_LOG::LOG(VNES_LOG::ERROR, "Reset signal is not implemented!");
+//}
 
-void CPU::release_reset(){
-	VNES_LOG::LOG(VNES_LOG::INFO, "Releasing reset signal");
-	VNES_LOG::LOG(VNES_LOG::ERROR, "Reset signal is not implemented!");
-}
-
-// Interrupt routines differ for maskable (BRK, IRQ) and non-maskable
+// Interrupt routines differ for maskable (BRK/IRQ) and non-maskable
 // interrupts. However, the return-from-interrupt sequence 
 // is the same (see: RTI())
 void CPU::raise_interrupt(bool maskable){
@@ -122,7 +130,7 @@ void CPU::raise_interrupt(bool maskable){
     // and P is stored before I is asserted, 
     // I will always be deasserted by RTI
     if(maskable){
-        if(interrupt_disable_f){
+        if(CPU::MASKABLE_IRQ && interrupt_disable_f){
             return;
         }
         push_program_counter();
@@ -235,6 +243,7 @@ uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode){
 
 // returns cycles passed
 int CPU::execute_instruction(uint8_t instruction){
+    VNES_LOG::LOG(VNES_LOG::DEBUG, "Executing instruction %x", instruction);
     switch(instruction){
         /* Load/Store */
         case LDA_XIND:    // Load Accumulator 	N,Z
@@ -1454,7 +1463,7 @@ void CPU::SEI(){
 void CPU::BRK(){
     VNES_LOG::LOG(VNES_LOG::WARN, "Should BRK() handled the byte after the BRK opcode (byte is 'reason for interrupt/brk')? Investigate this!");
     program_counter += 2;
-    raise_interrupt(true);
+    raise_interrupt(true); // raise as maskable
 }
 
 void CPU::NOP(){

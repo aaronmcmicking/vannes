@@ -5,6 +5,7 @@
 #include "common/util.hpp"
 #include "common/nes_assert.hpp"
 #include "cartridge/cartridge.cpp"
+#include "mappers/Mapper000.cpp"
 
 int main(){
     using namespace VNES_LOG;
@@ -16,22 +17,30 @@ int main(){
 
     //VNES_LOG::log_level = VNES_LOG::ERROR;
 
-    RAM ram = RAM();
-    uint16_t ptr = 0x0000;
-    ram.write_reset_vec(ptr);
-    ram.write(ptr++, CPU::SEC_IMPL);
-    ram.write(ptr++, CPU::CLC_IMPL);
-    ram.write(ptr++, CPU::NOP_IMPL);
+    Cartridge cart = Cartridge("roms/Super Mario Bros. (Japan, USA).nes");
+    RAM ram = RAM(cart);
     PPU ppu = PPU();
     CPU cpu = CPU(ram, ppu);
-    cpu.set_status_reg(0);
-    for(int i = 0; i < ptr; i++){
-        std::cout << binary_string(cpu.status_as_int(), 8) << std::endl;
+
+    int i = 0;
+    for(i = 0; i < 100; i++){
+        //cpu.set_status_reg(0b10000000);
         cpu.step();
     }
+    printf("%d\n", i);
 
-    Cartridge cart = Cartridge("roms/Super Mario Bros. (Japan, USA).nes");
+    //cpu.set_status_reg(0);
+    //for(int i = 0; i < ptr; i++){
+    //    std::cout << binary_string(cpu.status_as_int(), 8) << std::endl;
+    //    cpu.step();
+    //}
+
     //cart.dump_rom();
+
+
+    Mapper map {};
+    std::cout << map.name << std::endl;
+    
 
     return 0;
 }

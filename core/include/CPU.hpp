@@ -5,6 +5,7 @@
 #include "../PPU.cpp"
 #include "../../common/typedefs.hpp"
 
+
 // The NES CPU is a modified version of the MOS 6502 called the Ricoh 2A03.
 // It removes some instructions from the 6502 and includes and APU in the CPU.
 
@@ -13,6 +14,7 @@ class CPU{
     public:
         CPU(RAM& _ram, PPU& ppu_);
         void step();
+        const bool MASKABLE_IRQ = false; // interrupts are not actually maskable, since implementing masking is hard and im dumb
 
     private:
         RAM& ram;
@@ -74,8 +76,9 @@ class CPU{
         // see https://web.archive.org/web/20200129081101/http://users.telenet.be:80/kim1-6502/6502/proman.html
         // for power-up sequence details
         void power_up();
-        void engage_reset();
-        void release_reset();
+        //void engage_reset();
+        //void release_reset();
+        void reset();
 
     public:
         void        write_brk_vec(uint16_t data);

@@ -4,5 +4,5 @@
 #include "../common/log.hpp"
 
 void PPU::do_cycle(){
-    VNES_LOG::LOG(VNES_LOG::DEBUG, "PPU cycle requested");
+    //VNES_LOG::LOG(VNES_LOG::DEBUG, "PPU cycle requested");
 }
