@@ -63,7 +63,6 @@ void CPU::write_reset_vec(uint16_t data){
 }
 
 uint16_t CPU::read_reset_vec(){
-	VNES_LOG::LOG(VNES_LOG::WARN, "read_reset_vec(): Check that I'm implemented correctly!");
     uint16_t data = 0;
     data |= read_mem(RAM::VEC_ADDR::RESET_VEC + 1); // HB
     data <<= 8;

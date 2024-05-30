@@ -154,7 +154,8 @@ void Cartridge::write(uint16_t addr, uint8_t data){
             mapper->write(addr, data);
             break;
         case 0x8000 ... 0xFFFF:
-            LOG(ERROR, "Cartridge memory write to read-only address 0x%x (expected range is 0x4020 to 0x8000). Write has no effect", addr);
+            LOG(WARN, "Cartridge memory write to read-only address 0x%x (expected range is 0x4020 to 0x8000). Write will be allowed but should be noted", addr);
+            mapper->write(addr, data);
             break;
         default:
             LOG(ERROR, "Cartridge memory write at out-of-bounds address 0x%x (expected range is 0x4020 to 0x8000). Write has no effect", addr);

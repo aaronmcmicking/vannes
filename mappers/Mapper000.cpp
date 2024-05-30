@@ -35,7 +35,8 @@ class Mapper000 : public Mapper{
                     chr_rom[addr % 0x4020] = data;
                     break;
                 case 0x8000 ... 0xFFFF:
-                    LOG(ERROR, "Mapper cannot write to ROM address 0x%x. Write call has no effect. Data was 0x%x", addr, data);
+                    LOG(ERROR, "Mapper write to ROM address 0x%x. Write will be allowed as it may be for debug purposes. Data is 0x%x", addr, data);
+                    prg_rom[addr % 0x8000] = data;
                     break;
                 default:
                     LOG(ERROR, "Mapper cannot write to cartridge memory at out-of-bounds 0x%x (expected range is 0x4020 to 0x8000)", addr);

@@ -15,6 +15,7 @@ class CPU{
         CPU(RAM& _ram, PPU& ppu_);
         void step();
         const bool MASKABLE_IRQ = false; // interrupts are not actually maskable, since implementing masking is hard and im dumb
+        void reset();
 
     private:
         RAM& ram;
@@ -78,7 +79,6 @@ class CPU{
         void power_up();
         //void engage_reset();
         //void release_reset();
-        void reset();
 
     public:
         void        write_brk_vec(uint16_t data);
