@@ -12,6 +12,8 @@ class RAM{
         uint8_t read(uint16_t addr);
         void    write(uint16_t addr, uint8_t data);
 
+        void dump(); // dumps RAM contents (as visible through RAM::read() calls) to stdout
+
         // The addresses of the the reserved 16 bit vectors, in little
         // endian format. The lower 8 bits are stored at ADDR and the higher at
         // ADDR+1

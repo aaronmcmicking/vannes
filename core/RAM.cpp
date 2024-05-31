@@ -4,6 +4,8 @@
 #include "../common/nes_assert.hpp"
 #include "../common/log.hpp"
 #include <stdlib.h>
+#include <fstream>
+#include <stdio.h> // FILE* cause i dont like fstream 
 
 RAM::RAM(Cartridge& cart): cart {cart} {
     VNES_LOG::LOG(VNES_LOG::INFO, "Constructing RAM...");
@@ -46,4 +48,28 @@ uint8_t RAM::read(uint16_t addr){
             exit(1);
             break;
     }
+}
+
+void RAM::dump(){
+    VNES_LOG::LOG(VNES_LOG::INFO, "Dumping RAM as accessed by RAM::read() (not resilient to cartridge/mapper/RAM bugs)");
+    FILE* file = fopen("ram.dump", "w");
+    //std::ofstream file {};
+    //file.open("ram.dump", std::ios::out);
+
+    for(int i = 0x0000; i <= 0xFFFF; i++){
+        if(i && !(i % 2)){ fprintf(file, " "); }
+        if(!(i % 32)){ 
+            fprintf(file, "\n0x");
+            if(!(i & 0xF000)){ fprintf(file, "0"); }
+            if(!(i & 0xFF00)){ fprintf(file, "0"); }
+            if(!(i & 0xFFF0)){ fprintf(file, "0"); }
+            fprintf(file, "%x  ", i); 
+        }
+
+        int data = read(i);
+        if(!(data & 0xF0)){ fprintf(file, "0"); }
+        fprintf(file, "%x", read(i));
+    }
+    fprintf(file, "\n");
+    fclose(file);
 }

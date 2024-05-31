@@ -19,21 +19,23 @@ void Cartridge::set_mapper(){
             mapper = make_unique<Mapper000>(prg_rom, chr_rom);
             break;
         default:
-            VNES_LOG::LOG(VNES_LOG::WARN, "Mapper number %d not recognized, setting default Mapper000", mapper_number);
             mapper = make_unique<Mapper000>(prg_rom, chr_rom);
+            VNES_LOG::LOG(VNES_LOG::WARN, "Mapper number %d not recognized, setting default %s", mapper_number, mapper->name.c_str());
             break;
     }
     VNES_LOG::LOG(VNES_LOG::INFO, "Set cartridge mapper to %s", mapper->name.c_str());
 }
 
 void Cartridge::load_rom(std::string filename){
-    VNES_LOG::LOG(VNES_LOG::INFO, "Loading ROM.");
+    using namespace VNES_LOG;
+    LOG(INFO, "Loading ROM.");
     std::ifstream file {};
     file.open(filename, std::ios::binary | std::ios::in);
-    std::cout << '\'' << filename << '\'' << std::endl;
+    LOG(INFO, "Loading ROM: %s", filename.c_str());
+    //std::cout << "Loading ROM: " << filename << std::endl;
     
     if(!file.is_open()){
-        VNES_LOG::LOG(VNES_LOG::FATAL, "Failed to open ROM file to read. Exiting");
+        LOG(FATAL, "Failed to open ROM file to read. Exiting");
         VNES_ASSERT(0 && "Failed to open ROM file for reading");
     }
 
@@ -60,14 +62,14 @@ void Cartridge::load_rom(std::string filename){
         && header.nes_title[2] == 0x53  
         && header.nes_title[3] == 0x1A) // 0x1A is MS DOS end-of-line
     ){
-        VNES_LOG::LOG(VNES_LOG::WARN, "Didn't find 'NES' at start of ROM file as expected by iNES standard. Instead got %x %x %x %x. Is the ROM malformed? Continuing with execution, but there may have actually been a critical error!", header.nes_title[0], header.nes_title[1], header.nes_title[2], header.nes_title[3]);
+        LOG(WARN, "Didn't find 'NES' at start of ROM file as expected by iNES standard. Instead got %x %x %x %x. Is the ROM malformed? Continuing with execution, but there may have actually been a critical error!", header.nes_title[0], header.nes_title[1], header.nes_title[2], header.nes_title[3]);
     }
 
     // check header format
     if(   // if NOT in NES2 format and final 4 bytes of header are NOT zeroes
           !((header.flags_7 | 0b00001100) == 0b00001000) // "If [bits[3:2]] equal to 2, flags 8-15 are in NES 2.0 format"
        && !(header.padding[2] | header.padding[3] | header.padding[4] | header.padding[5])){
-        VNES_LOG::LOG(VNES_LOG::INFO, "Found data in final 4 bytes of cartridge header when not in NES2 mode. Sometimes this indicates a malformed or 'authour-signatured', but may also mean the ROM complies to an old version of the iNES standard. Clearing mapper number to bottom 4 bits and continuing");
+        LOG(INFO, "Found data in final 4 bytes of cartridge header when header did not select NES2 standard. Sometimes this indicates the ROM complies to an old version of the iNES standard, but may also mean the ROM is malformed or 'authour-signatured'. Clearing mapper number to bottom 4 bits and continuing");
         header.flags_7 &= 0b00001111;
     }
 
@@ -86,23 +88,23 @@ void Cartridge::load_rom(std::string filename){
     }
 
     // get prg rom
-    VNES_LOG::LOG(VNES_LOG::INFO, "Loading PRG ROM.", header.prg_rom_size_x16kb);
+    LOG(INFO, "Loading PRG ROM.", header.prg_rom_size_x16kb);
     prg_rom.clear();
     for(int i = 0; i < header.prg_rom_size_x16kb*16384; i++){
         prg_rom.insert(prg_rom.end(), file.get()); 
     }
-    VNES_LOG::LOG(VNES_LOG::DEBUG, "header.prg_rom_size_x16kb is %d: loaded %d bytes to prg_rom", header.prg_rom_size_x16kb, prg_rom.size());
+    LOG(DEBUG, "header.prg_rom_size_x16kb is %d: loaded %d bytes to prg_rom", header.prg_rom_size_x16kb, prg_rom.size());
 
     // get chr rom
-    VNES_LOG::LOG(VNES_LOG::INFO, "Loading CHR ROM");
+    LOG(INFO, "Loading CHR ROM");
     chr_rom.clear();
     for(int i = 0; i < header.chr_rom_size_x8kb*8192; i++){
         chr_rom.insert(chr_rom.end(), file.get()); 
     }
-    VNES_LOG::LOG(VNES_LOG::DEBUG, "header.chr_rom_size_x8kb is %d: loaded %d bytes to chr_rom", header.chr_rom_size_x8kb, chr_rom.size());
+    LOG(DEBUG, "header.chr_rom_size_x8kb is %d: loaded %d bytes to chr_rom", header.chr_rom_size_x8kb, chr_rom.size());
 
     file.close();
-    VNES_LOG::LOG(VNES_LOG::INFO, "Finished loading ROM.");
+    LOG(INFO, "Finished loading ROM.");
 }
 
 void Cartridge::dump_rom(){
