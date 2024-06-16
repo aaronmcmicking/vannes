@@ -3,6 +3,8 @@
 #include <stdarg.h> 
 #include <stdio.h> 
 #include <stdlib.h> // exit
+#include <string>
+#include <sstream>
 
 namespace VNES_LOG{
 
@@ -18,36 +20,63 @@ enum Severity{
 
 // the min level to output log
 Severity log_level = (Severity)1;
+bool file_out = false;
+const std::string log_filename {"vannes.log"};
+
+void init_log(){
+    fclose(fopen(log_filename.c_str(), "w"));
+    
+}
 
 void log(const char* __file__, int __line__, Severity severity, const char* log_str, ...){
-    if(severity < log_level) return;
+    std::string sev_label {};
+    std::stringstream file_line {};
     switch(severity){
         case DEBUG:
-            printf("DEBUG ");
+            sev_label = "DEBUG ";
             break;
         case INFO:
-            printf("INFO  ");
+            sev_label = "INFO  ";
             break;
         case WARN:
-            printf("WARN  ");
+            sev_label = "WARN  ";
             break;
         case ERROR:
-            printf("ERROR ");
+            sev_label = "ERROR ";
             break;
         case FATAL:
-            printf("FATAL ");
+            sev_label = "FATAL ";
             break;
         default:
             printf("Unexpected severity '%d' in VNES_LOG::LOG", severity);
+            sev_label = "UNKNOWN ";
             break;
     }
 
-    printf("%s:%d ", __file__, __line__);
+    file_line << __file__ << ':' << __line__ << ' ';
+    //printf("%s:%d ", __file__, __line__);
+
+    // stdout
+    if(!(severity < log_level)){
+        printf("%s", sev_label.c_str());
+        printf("%s", file_line.str().c_str());
+        va_list argptr;
+        va_start(argptr, log_str);
+        vfprintf(stdout, log_str, argptr);
+        va_end(argptr);
+        printf("\n");
+    }
+
+    // log file
+    FILE* logfile = fopen(log_filename.c_str(), "a");
+    fprintf(logfile, sev_label.c_str());
+    fprintf(logfile, file_line.str().c_str());
     va_list argptr;
     va_start(argptr, log_str);
-    vfprintf(stdout, log_str, argptr);
+    vfprintf(logfile, log_str, argptr);
     va_end(argptr);
-    printf("\n");
+    fprintf(logfile, "\n");
+    fclose(logfile);
 }
 
 }

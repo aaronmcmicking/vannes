@@ -56,6 +56,8 @@ void RAM::dump(){
     //std::ofstream file {};
     //file.open("ram.dump", std::ios::out);
 
+    VNES_LOG::Severity old_log_level = VNES_LOG::log_level;
+    VNES_LOG::log_level = VNES_LOG::ERROR; // disable DEBUG/INFO/WARN 
     for(int i = 0x0000; i <= 0xFFFF; i++){
         if(i && !(i % 2)){ fprintf(file, " "); }
         if(!(i % 32)){ 
@@ -72,4 +74,5 @@ void RAM::dump(){
     }
     fprintf(file, "\n");
     fclose(file);
+    VNES_LOG::log_level = old_log_level; // re-enable logging
 }

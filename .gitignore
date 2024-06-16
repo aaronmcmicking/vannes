@@ -5,6 +5,8 @@ vannes
 # testing
 test*
 ram.dump
+vannes.log
+nestest.log
 
 roms/*
 

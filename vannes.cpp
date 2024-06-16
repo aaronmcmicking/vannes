@@ -31,6 +31,8 @@ void parse_args(int argc, char** argv, std::string& rom_filename, VNES_LOG::Seve
 int main(int argc, char** argv){
     using namespace VNES_LOG;
 
+    init_log();
+
     std::string rom_filename {"roms/Super Mario Bros. (Japan, USA).nes"};
     parse_args(argc, argv, rom_filename, VNES_LOG::log_level);
 
@@ -41,11 +43,11 @@ int main(int argc, char** argv){
     CPU cpu = CPU(ram, ppu);
 
     int i = 0;
-    for(i = 0; i < 100; i++){
+    for(i = 0; i < 10; i++){
         cpu.step();
     }
 
-    for(int i = 0; i < 10; i++) { ram.write(i, i); ram.write(i+0x8000, i); }
+    //for(int i = 0; i < 10; i++) { ram.write(i, i); ram.write(i+0x8000, i); }
     ram.dump();
 
     return 0;
