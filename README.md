@@ -1,6 +1,7 @@
 # VANNES (WIP)
 
-VANNES is a WIP basic emulator for the Nintendo Entertainment System. Written in C++20.
+VANNES is a WIP basic emulator for the Nintendo Entertainment System, emulating the
+NTSC NES-001. Written in C++20.
 
 ## Progress
 Done/More done:

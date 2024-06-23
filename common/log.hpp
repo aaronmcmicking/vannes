@@ -8,7 +8,7 @@
 
 namespace VNES_LOG{
 
-#define LOG(severity, format, ...) log(__FILE__, __LINE__, true, severity, format, ##__VA_ARGS__)
+#define LOG(severity, format, ...) log(__FILE__, __LINE__, '\n', severity, format, ##__VA_ARGS__)
 
 enum Severity{
     DEBUG = 1,
@@ -19,7 +19,7 @@ enum Severity{
 };
 
 // the min level to output log
-Severity log_level = (Severity)1;
+Severity log_level = (Severity)2;
 bool file_out = false;
 const std::string log_filename {"vannes.log"};
 
@@ -27,7 +27,9 @@ void init_log(){
     if(file_out){ fclose(fopen(log_filename.c_str(), "w")); }
 }
 
-void log(const char* __file__, int __line__, bool newline, Severity severity, const char* log_str, ...){
+void log(const char* __file__, int __line__, char endchar, Severity severity, const char* log_str, ...){
+    if(severity < log_level && !file_out){ return; }
+
     std::string sev_label {};
     std::stringstream file_line {};
     switch(severity){
@@ -56,14 +58,14 @@ void log(const char* __file__, int __line__, bool newline, Severity severity, co
     //printf("%s:%d ", __file__, __line__);
 
     // stdout
-    if(!(severity < log_level)){
+    if(severity >= log_level){
         printf("%s", sev_label.c_str());
         printf("%s", file_line.str().c_str());
         va_list argptr;
         va_start(argptr, log_str);
         vfprintf(stdout, log_str, argptr);
         va_end(argptr);
-        if(newline){ printf("\n"); } 
+        printf("%c", endchar);
     }
 
     // log file
@@ -75,7 +77,7 @@ void log(const char* __file__, int __line__, bool newline, Severity severity, co
         va_start(argptr, log_str);
         vfprintf(logfile, log_str, argptr);
         va_end(argptr);
-        if(newline){ fprintf(logfile, "\n"); }
+        fprintf(logfile, "%c", endchar);
         fclose(logfile);
     }
 }

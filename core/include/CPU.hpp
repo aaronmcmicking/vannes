@@ -45,10 +45,11 @@ class CPU{
     public: 
         uint8_t status_as_int(); // returns the packed status register
         void    set_status_reg(uint8_t data); 
-    private:
 
+        uint64_t cycles_since_reset;
         uint64_t frame_cycles;
 
+    private:
         uint8_t fetch_instruction();
         int     execute_instruction(uint8_t instruction);
 

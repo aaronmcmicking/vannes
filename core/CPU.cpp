@@ -19,11 +19,12 @@ void CPU::step(){
     uint64_t cycles_before = frame_cycles;
     execute_instruction(opcode);
     int cycles_done = frame_cycles - cycles_before; 
+    cycles_since_reset += cycles_done;
     LOG(DEBUG, "Opcode consumed %d cycles (%lld this frame)", cycles_done, frame_cycles);
     program_counter++;
 
     for(int i = 0; i < cycles_done*3; i++){ // 1 cpu cycle = 3 ppu cycles
-        ppu.do_cycle();
+        ppu.step();
     }
 }
 
@@ -110,6 +111,7 @@ void CPU::reset(){
     VNES_LOG::LOG(VNES_LOG::INFO, "Received reset signal");
     program_counter = read_reset_vec();
     VNES_LOG::LOG(VNES_LOG::INFO, "Loaded RESET Vec to PC. RESET Vec was 0x%x.", read_reset_vec());
+    ppu.reset();
 }
 
 //void CPU::engage_reset(){

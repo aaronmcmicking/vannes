@@ -18,14 +18,20 @@ RAM::RAM(Cartridge& cart): cart {cart} {
 
 void RAM::write(uint16_t addr, uint8_t data){
     switch(addr){
-        case 0x0000 ... 0x401F:
+        case 0x0000 ... 0x1FFF: // 2kb program RAM, 4 mirrored sections (each 0x0800 addrs)
+            addr = (addr % 0x0800);
             mem[addr] = data;
             break;
-        case 0x4020 ... 0xFFFF:
+        case 0x2000 ... 0x3FFF: // PPU registers
+            addr = (addr % 0x8) + 0x2000; // mirrors every eight bytes
+            mem[addr] = data;
+        case 0x4000 ... 0x401F: // APU and I/O registers
+            break;
+        case 0x4020 ... 0xFFFF: // cartridge ROM
             VNES_LOG::LOG(VNES_LOG::WARN, "RAM.write(): Usually cannot write to read-only ROM address 0x%x, maybe the mapper is allowing this?");
             cart.write(addr, data);
             break;
-        default:
+        default: // unreachable
             VNES_LOG::LOG(VNES_LOG::FATAL, "RAM.write(): Bad address 0x%x could not be mapped to mapper or internal RAM! How is this possible??");
             exit(1);
             break;
