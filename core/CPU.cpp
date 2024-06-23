@@ -1,6 +1,8 @@
 #pragma once
 
 #include <iostream>
+#include <sstream>
+#include <algorithm>
 #include "include/CPU.hpp"
 #include "../common/nes_assert.hpp"
 #include "../common/log.hpp"
@@ -11,12 +13,16 @@ CPU::CPU(RAM& _ram, PPU& _ppu): ram {_ram}, ppu {_ppu}{
 }
 
 void CPU::step(){
+    using namespace VNES_LOG;
     uint8_t opcode = fetch_instruction();
-    VNES_LOG::LOG(VNES_LOG::DEBUG, "Fetched opcode 0x%x from address 0x%x", opcode, program_counter);
-    int cycles = execute_instruction(opcode);
+    LOG(DEBUG, "Fetched opcode 0x%x from address 0x%x", opcode, program_counter);
+    uint64_t cycles_before = frame_cycles;
+    execute_instruction(opcode);
+    int cycles_done = frame_cycles - cycles_before; 
+    LOG(DEBUG, "Opcode consumed %d cycles (%lld this frame)", cycles_done, frame_cycles);
     program_counter++;
 
-    for(int i = 0; i < cycles*3; i++){ // 1 cpu cycle = 3 ppu cycles
+    for(int i = 0; i < cycles_done*3; i++){ // 1 cpu cycle = 3 ppu cycles
         ppu.do_cycle();
     }
 }
@@ -167,8 +173,24 @@ void CPU::set_status_reg(uint8_t status){
     carry_f             = (status & 0b00000001);
 }
 
+void CPU::add_cycle_if_page_crossed(uint16_t base_addr, 
+                                    uint16_t offset, 
+                                    CPU::ADDRESSING_MODE mode,
+                                    const AddrModeVec& modes){
+    bool check_in_this_mode = (std::find(modes.begin(), modes.end(), mode) != modes.end());
+    if(check_in_this_mode){
+        uint16_t result_addr = base_addr + offset;
+        base_addr &= 0xF0;
+        result_addr &= 0xF0;
+        if(base_addr != result_addr){
+            // page crossed
+            frame_cycles++;
+        }
+    }
+}
+
 // TODO: verify that page wrapping / page crossing is implemented correctly
-uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode){
+uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode, const AddrModeVec& page_crossing_modes = AddrModeVec{}){
     using namespace VNES_LOG;
     uint16_t addr = 0;
     uint8_t zpg_ptr = 0; // a pointer into the zero page is sometimes needed
@@ -187,11 +209,13 @@ uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode){
 		case ABSX:
             addr |= read_mem(++program_counter);
             addr |= ((uint16_t)read_mem(++program_counter) << 8);
+            add_cycle_if_page_crossed(addr, index_X, mode, page_crossing_modes);
             addr += index_X;
 			break;
 		case ABSY:
             addr |= read_mem(++program_counter);
             addr |= ((uint16_t)read_mem(++program_counter) << 8);
+            add_cycle_if_page_crossed(addr, index_Y, mode, page_crossing_modes);
             addr += index_Y;
 			break;
 		case IMM:
@@ -206,7 +230,7 @@ uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode){
             addr |= read_mem(zpg_ptr);
             addr |= (read_mem(++zpg_ptr) << 8);
 			break;
-		case XIND:
+		case INDX:
             zpg_ptr = read_mem(++program_counter);
             zpg_ptr += index_X;
             addr |= read_mem(zpg_ptr);
@@ -214,6 +238,7 @@ uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode){
 			break;
 		case INDY:
             zpg_ptr = read_mem(++program_counter);
+            add_cycle_if_page_crossed(zpg_ptr, index_Y, mode, page_crossing_modes);
             zpg_ptr += index_Y;
             addr |= read_mem(zpg_ptr);
             addr |= (read_mem(++zpg_ptr) << 8);
@@ -242,481 +267,634 @@ uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode){
 
 // returns cycles passed
 int CPU::execute_instruction(uint8_t instruction){
-    VNES_LOG::LOG(VNES_LOG::DEBUG, "Executing instruction 0x%x", instruction);
+    std::stringstream ss {};
+    ss << (OPCODE)instruction;
+    VNES_LOG::LOG(VNES_LOG::DEBUG, "Executing instruction %s", ss.str().c_str());
     switch(instruction){
         /* Load/Store */
-        case LDA_XIND:    // Load Accumulator 	N,Z
-            LDA(XIND);
+        case LDA_INDX:    // Load Accumulator 	N,Z
+            LDA(INDX);
+            frame_cycles += 6;
             break;
         case LDA_ZPG:    
             LDA(ZPG);
+            frame_cycles += 3;
             break;
         case LDA_IMM:    
             LDA(IMM);
+            frame_cycles += 2;
             break;
         case LDA_ABS:    
             LDA(ABS);
+            frame_cycles += 4;
             break;
         case LDA_INDY:    
+            frame_cycles += 5;
             LDA(INDY);
             break;
         case LDA_ZPGX:    
             LDA(ZPGX);
+            frame_cycles += 4;
             break;
         case LDA_ABSY:    
             LDA(ABSY);
+            frame_cycles += 4;
             break;
         case LDA_ABSX:    
             LDA(ABSX);
+            frame_cycles += 4;
             break;
         case LDX_IMM: 	// Load X Register 	    N,Z
             LDX(IMM);
+            frame_cycles += 2;
             break;
         case LDX_ZPG: 	
             LDX(ZPG);
+            frame_cycles += 3;
             break;
         case LDX_ABS: 	
             LDX(ABS);
+            frame_cycles += 4;
             break;
         case LDX_ZPGY: 	
             LDX(ZPGY);
+            frame_cycles += 4;
             break;
         case LDX_ABSY: 	
             LDX(ABSY);
+            frame_cycles += 4;
             break;
         case LDY_IMM: 	// Load Y Register 	    N,Z
             LDY(IMM);
+            frame_cycles += 2;
             break;
         case LDY_ZPG: 	
             LDY(ZPG);
+            frame_cycles += 3;
             break;
         case LDY_ABS: 	
             LDY(ABS);
+            frame_cycles += 4;
             break;
         case LDY_ZPGX: 	
             LDY(ZPGX);
+            frame_cycles += 4;
             break;
         case LDY_ABSX: 	
             LDY(ABSX);
+            frame_cycles += 4;
             break;
-        case STA_XIND: 	// Store Accumulator 	 
-            STA(XIND);
+        case STA_INDX: 	// Store Accumulator 	 
+            STA(INDX);
+            frame_cycles += 6;
             break;
         case STA_ZPG: 	 	 
             STA(ZPG);
+            frame_cycles += 3;
             break;
         case STA_ABS: 	 	 
             STA(ABS);
+            frame_cycles += 4;
             break;
         case STA_INDY: 	 	 
             STA(INDY);
+            frame_cycles += 6;
             break;
         case STA_ZPGX: 	 	 
             STA(ZPGX);
+            frame_cycles += 4;
             break;
         case STA_ABSY: 	 	 
             STA(ABSY);
+            frame_cycles += 5;
             break;
         case STA_ABSX: 	 	 
             STA(ABSX);
+            frame_cycles += 5;
             break;
         case STX_ZPG: 	// Store X Register 	 
             STX(ZPG);
+            frame_cycles += 3;
             break;
         case STX_ABS: 	 	 
             STX(ABS);
+            frame_cycles += 4;
             break;
         case STX_ZPGY: 	 	 
             STX(ZPGY);
+            frame_cycles += 4;
             break;
         case STY_ZPG: 	// Store Y Register 	 
             STY(ZPG);
+            frame_cycles += 3;
             break;
         case STY_ABS: 	 	 
             STY(ABS);
+            frame_cycles += 4;
             break;
         case STY_ZPGX: 	 	 
             STY(ZPGX);
+            frame_cycles += 4;
             break;
 
         /* Register Transfers */
         case TAX_IMPL: 	    // Transfer accumulator to X 	N,Z
             TAX();
+            frame_cycles += 2;
 			break;
         case TAY_IMPL: 	    // Transfer accumulator to Y 	N,Z
             TAY();
+            frame_cycles += 2;
 			break;
         case TXA_IMPL: 	    // Transfer X to accumulator 	N,Z
             TXA();
+            frame_cycles += 2;
 			break;
         case TYA_IMPL: 	    // Transfer Y to accumulator 	N,Z
             TYA();
+            frame_cycles += 2;
             break;
 
         /* Stack Operations */
         case TSX_IMPL: 	    // Transfer stack pointer to X 	    N,Z
             TSX();
+            frame_cycles += 2;
 			break;
         case TXS_IMPL: 	    // Transfer X to stack pointer 	 
             TXS();
+            frame_cycles += 2;
 			break;
         case PHA_IMPL: 	    // Push accumulator on stack 	 
             PHA();
+            frame_cycles += 3;
 			break;
         case PHP_IMPL: 	    // Push processor status on stack 	 
             PHP();
+            frame_cycles += 3;
 			break;
         case PLA_IMPL: 	    // Pull accumulator from stack 	    N,Z
             PLA();
+            frame_cycles += 4;
 			break;
         case PLP_IMPL: 	    // Pull processor status from stack All
             PLP();
+            frame_cycles += 4;
             break;
 
         /* Logical */
-        case AND_XIND: 	    // Logical AND 	            N,Z
-            AND(XIND);
+        case AND_INDX: 	    // Logical AND 	            N,Z
+            AND(INDX);
+            frame_cycles += 6;
             break;
         case AND_ZPG: 	    
             AND(ZPG);
+            frame_cycles += 3;
             break;
         case AND_IMM: 	    
             AND(IMM);
+            frame_cycles += 2;
             break;
         case AND_ABS: 	    
             AND(ABS);
+            frame_cycles += 4;
             break;
         case AND_INDY: 	    
             AND(INDY);
+            frame_cycles += 5;
             break;
         case AND_ZPGX: 	    
             AND(ZPGX);
+            frame_cycles += 4;
             break;
         case AND_ABSY: 	    
             AND(ABSY);
+            frame_cycles += 4;
             break;
         case AND_ABSX: 	    
             AND(ABSX);
+            frame_cycles += 4;
             break;
-        case EOR_XIND: 	    // Exclusive OR     N,Z
-            EOR(XIND);
+        case EOR_INDX: 	    // Exclusive OR     N,Z
+            EOR(INDX);
+            frame_cycles += 6;
             break;
         case EOR_ZPG: 	    
             EOR(ZPG);
+            frame_cycles += 3;
             break;
         case EOR_IMM: 	    
             EOR(IMM);
+            frame_cycles += 2;
             break;
         case EOR_ABS: 	    
             EOR(ABS);
+            frame_cycles += 4;
             break;
         case EOR_INDY: 	    
             EOR(INDY);
+            frame_cycles += 5;
             break;
         case EOR_ZPGX: 	    
             EOR(ZPGX);
+            frame_cycles += 4;
             break;
         case EOR_ABSY: 	    
+            frame_cycles += 4;
             EOR(ABSY);
             break;
         case EOR_ABSX: 	    
             EOR(ABSX);
+            frame_cycles += 4;
             break;
-        case ORA_XIND: 	    // Logical Inclusive OR 	N,Z
-            ORA(XIND);
+        case ORA_INDX: 	    // Logical Inclusive OR 	N,Z
+            ORA(INDX);
+            frame_cycles += 6;
             break;
         case ORA_ZPG: 	    
             ORA(ZPG);
+            frame_cycles += 3;
             break;
         case ORA_IMM: 	    
             ORA(IMM);
+            frame_cycles += 2;
             break;
         case ORA_ABS: 	    
             ORA(ABS);
+            frame_cycles += 4;
             break;
         case ORA_INDY: 	    
             ORA(INDY);
+            frame_cycles += 5;
             break;
         case ORA_ZPGX: 	    
             ORA(ZPGX);
+            frame_cycles += 4;
             break;
         case ORA_ABSY: 	    
             ORA(ABSY);
+            frame_cycles += 4;
             break;
         case ORA_ABSX: 	    
             ORA(ABSX);
+            frame_cycles += 4;
             break;
         case BIT_ZPG: 	    // Bit Test 	            N,V,Z
             BIT(ZPG);
+            frame_cycles += 3;
             break;
         case BIT_ABS: 	    
             BIT(ABS);
+            frame_cycles += 4;
             break;
 
         /* Arithmetic */
-        case ADC_XIND: 	    // Add with Carry 	    N,V,Z,C 
-            ADC(XIND);
+        case ADC_INDX: 	    // Add with Carry 	    N,V,Z,C 
+            ADC(INDX);
+            frame_cycles += 6;
             break;
         case ADC_ZPG: 	    
             ADC(ZPG);
+            frame_cycles += 3;
             break;
         case ADC_IMM: 	    
             ADC(IMM);
+            frame_cycles += 2;
             break;
         case ADC_ABS: 	    
             ADC(ABS);
+            frame_cycles += 4;
             break;
         case ADC_INDY: 	    
             ADC(INDY);
+            frame_cycles += 5;
             break;
         case ADC_ZPGX: 	    
             ADC(ZPGX);
+            frame_cycles += 4;
             break;
         case ADC_ABSY: 	    
             ADC(ABSY);
+            frame_cycles += 4;
             break;
         case ADC_ABSX: 	    
             ADC(ABSX);
+            frame_cycles += 4;
             break;
-        case SBC_XIND: 	    // Subtract with Carry 	N,V,Z,C
-            SBC(XIND);
+        case SBC_INDX: 	    // Subtract with Carry 	N,V,Z,C
+            SBC(INDX);
+            frame_cycles += 6;
             break;
         case SBC_ZPG: 	    
             SBC(ZPG);
+            frame_cycles += 3;
             break;
         case SBC_IMM: 	    
             SBC(IMM);
+            frame_cycles += 2;
             break;
         case SBC_ABS: 	    
             SBC(ABS);
+            frame_cycles += 4;
             break;
         case SBC_INDY: 	    
             SBC(INDY);
+            frame_cycles += 5;
             break;
         case SBC_ZPGX: 	    
             SBC(ZPGX);
+            frame_cycles += 4;
             break;
         case SBC_ABSY: 	    
             SBC(ABSY);
+            frame_cycles += 4;
             break;
         case SBC_ABSX: 	    
             SBC(ABSX);
+            frame_cycles += 4;
             break;
-        case CMP_XIND: 	    // Compare accumulator 	N,Z,C
-            CMP(XIND);
+        case CMP_INDX: 	    // Compare accumulator 	N,Z,C
+            CMP(INDX);
+            frame_cycles += 6;
             break;
         case CMP_ZPG: 	    
             CMP(ZPG);
+            frame_cycles += 3;
             break;
         case CMP_IMM: 	    
             CMP(IMM);
+            frame_cycles += 2;
             break;
         case CMP_ABS: 	    
             CMP(ABS);
+            frame_cycles += 4;
             break;
         case CMP_INDY: 	    
             CMP(INDY);
+            frame_cycles += 5;
             break;
         case CMP_ZPGX: 	    
             CMP(ZPGX);
+            frame_cycles += 4;
             break;
         case CMP_ABSY: 	    
             CMP(ABSY);
+            frame_cycles += 4;
             break;
         case CMP_ABSX: 	    
             CMP(ABSX);
+            frame_cycles += 4;
             break;
         case CPX_IMM: 	    // Compare X register 	N,Z,C
             CPX(IMM);
+            frame_cycles += 2;
             break;
         case CPX_ZPG: 	    
             CPX(ZPG);
+            frame_cycles += 3;
             break;
         case CPX_ABS: 	    
             CPX(ABS);
+            frame_cycles += 4;
             break;
         case CPY_IMM: 	    // Compare Y register 	N,Z,C
             CPY(IMM);
+            frame_cycles += 2;
             break;
         case CPY_ZPG: 	    
             CPY(ZPG);
+            frame_cycles += 3;
             break;
         case CPY_ABS: 	    
             CPY(ABS);
+            frame_cycles += 4;
             break;
 
         /* Increments & Decrements */
         case INC_ZPG: 	    // Increment a memory location 	N,Z
             INC(ZPG);
+            frame_cycles += 5;
             break;
         case INC_ABS: 	    
             INC(ABS);
+            frame_cycles += 6;
             break;
         case INC_ZPGX: 	    
             INC(ZPGX);
+            frame_cycles += 6;
             break;
         case INC_ABSX: 	    
             INC(ABSX);
+            frame_cycles += 7;
             break;
         case INX_IMPL: 	    // Increment the X register 	N,Z
             INX();
+            frame_cycles += 2;
             break;
         case INY_IMPL: 	    // Increment the Y register 	N,Z
             INY();
+            frame_cycles += 2;
             break;
         case DEC_ZPG: 	    // Decrement a memory location 	N,Z
             DEC(ZPG);
+            frame_cycles += 5;
             break;
         case DEC_ABS: 	    
             DEC(ABS);
+            frame_cycles += 6;
             break;
         case DEC_ZPGX: 	    
             DEC(ZPGX);
+            frame_cycles += 6;
             break;
         case DEC_ABSX: 	    
             DEC(ABSX);
+            frame_cycles += 7;
             break;
         case DEX_IMPL: 	    // Decrement the X register 	N,Z
             DEX();
+            frame_cycles += 2;
             break;
         case DEY_IMPL: 	    // Decrement the Y register 	N,Z
             DEY();
+            frame_cycles += 2;
             break;
 
         /* Shifts */
         case ASL_ZPG: 	    // Arithmetic Shift Left 	N,Z,C
             ASL(ZPG);
+            frame_cycles += 5;
             break;
         case ASL_ACC: 	    
             ASL_eACC();
+            frame_cycles += 2;
             break;
         case ASL_ABS: 	    
             ASL(ABS);
+            frame_cycles += 6;
             break;
         case ASL_ZPGX: 	    
             ASL(ZPGX);
+            frame_cycles += 6;
             break;
         case ASL_ABSX: 	    
             ASL(ABSX);
+            frame_cycles += 7;
             break;
         case LSR_ZPG: 	    // Logical Shift Right 	    N,Z,C
             LSR(ZPG);
+            frame_cycles += 5;
             break;
         case LSR_ACC: 	    
             LSR_eACC();
+            frame_cycles += 2;
             break;
         case LSR_ABS: 	    
             LSR(ABS);
+            frame_cycles += 6;
             break;
         case LSR_ZPGX: 	    
             LSR(ZPGX);
+            frame_cycles += 6;
             break;
         case LSR_ABSX: 	    
             LSR(ABSX);
+            frame_cycles += 7;
             break;
         case ROL_ZPG: 	    // Rotate Left 	            N,Z,C
             ROL(ZPG);
+            frame_cycles += 5;
             break;
         case ROL_ACC: 	    
             ROL_eACC();
+            frame_cycles += 2;
             break;
         case ROL_ABS: 	    
             ROL(ABS);
+            frame_cycles += 6;
             break;
         case ROL_ZPGX: 	    
             ROL(ZPGX);
+            frame_cycles += 6;
             break;
         case ROL_ABSX: 	    
             ROL(ABSX);
+            frame_cycles += 7;
             break;
         case ROR_ZPG: 	    // Rotate Right 	        N,Z,C
             ROR(ZPG);
+            frame_cycles += 5;
             break;
         case ROR_ACC: 	    
             ROR_eACC();
+            frame_cycles += 2;
             break;
         case ROR_ABS: 	    
+            frame_cycles += 6;
             ROR(ABS);
             break;
         case ROR_ZPGX: 	    
             ROR(ZPGX);
+            frame_cycles += 6;
             break;
         case ROR_ABSX: 	    
-            ROR(ABS);
+            ROR(ABSX);
+            frame_cycles += 7;
             break;
 
         /* Jumps & Calls */
         case JMP_ABS: 	    // Jump to another location 	 
             JMP(ABS);
+            frame_cycles += 3;
             break;
         case JMP_IND: 	     	 
             JMP(IND);
+            frame_cycles += 5;
             break;
         case JSR_ABS: 	    // Jump to a subroutine 	 
             JSR();
+            frame_cycles += 6;
             break;
         case RTS_IMPL: 	    // Return from subroutine 	 
             RTS();
+            frame_cycles += 6;
             break;
 
         /* Branches */
         case BCC_REL: 	    // Branch if carry flag clear 	 
             BCC();
+            frame_cycles += 2;
 			break;
         case BCS_REL: 	    // Branch if carry flag set 	 
             BCS();
+            frame_cycles += 2;
 			break;
         case BEQ_REL: 	    // Branch if zero flag set 	 
             BEQ();
+            frame_cycles += 2;
 			break;
         case BMI_REL: 	    // Branch if negative flag set 	 
             BMI();
+            frame_cycles += 2;
 			break;
         case BNE_REL: 	    // Branch if zero flag clear 	 
             BNE();
+            frame_cycles += 2;
 			break;
         case BPL_REL: 	    // Branch if negative flag clear 	 
             BPL();
+            frame_cycles += 2;
 			break;
         case BVC_REL: 	    // Branch if overflow flag clear 	 
             BVC();
+            frame_cycles += 2;
 			break;
         case BVS_REL: 	    // Branch if overflow flag set 	 
             BVS();
+            frame_cycles += 2;
 			break;
 
         /* Status Flag Changes */
         case CLC_IMPL: 	    // Clear carry flag 	            C
             CLC();
+            frame_cycles += 2;
 			break;
         case CLD_IMPL: 	    // Clear decimal mode flag 	        D
             CLD();
+            frame_cycles += 2;
 			break;
         case CLI_IMPL: 	    // Clear interrupt disable flag 	I
             CLI();
+            frame_cycles += 2;
 			break;
         case CLV_IMPL: 	    // Clear overflow flag 	            V
             CLV();
+            frame_cycles += 2;
 			break;
         case SEC_IMPL: 	    // Set carry flag 	                C
             SEC();
+            frame_cycles += 2;
 			break;
         case SED_IMPL: 	    // Set decimal mode flag 	        D
             SED();
+            frame_cycles += 2;
 			break;
         case SEI_IMPL: 	    // Set interrupt disable flag 	    I
             SEI();
+            frame_cycles += 2;
 			break;
 
         /* System Functions */
         case BRK_IMPL: 	    // Force an interrupt 	    B
             BRK();
+            frame_cycles += 7;
             break;
         case NOP_IMPL: 	    // No Operation
             NOP();
+            frame_cycles += 1;
             break;
         case RTI_IMPL:	    // Return from Interrupt 	All
             RTI();
+            frame_cycles += 6;
             break;
 
         /* Unofficial/Illegal opcodes */
@@ -843,7 +1021,7 @@ int CPU::execute_instruction(uint8_t instruction){
 
         // TODO: compile remaining illegal opcodes 
         /* SLO = ASL combined with ORA */
-        case SLO_XIND_ILL:
+        case SLO_INDX_ILL:
             VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to execute unimplemented illegal opcode. Continuing with no effect.");
 			break;
         case SLO_INDY_ILL:
@@ -866,7 +1044,7 @@ int CPU::execute_instruction(uint8_t instruction){
 			break;
 
         /* RLA = AND combined with ROL */
-		case RLA_XIND_ILL:
+		case RLA_INDX_ILL:
         	VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to execute unimplemented illegal opcode. Continuing with no effect.");
 			break;
 		case RLA_INDY_ILL:
@@ -889,7 +1067,7 @@ int CPU::execute_instruction(uint8_t instruction){
 			break;
 
         /* SRE = LSR combined with EOR */
-        case SRE_XIND_ILL:
+        case SRE_INDX_ILL:
             VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to execute unimplemented illegal opcode. Continuing with no effect.");
 			break;
         case SRE_INDY_ILL:
@@ -912,7 +1090,7 @@ int CPU::execute_instruction(uint8_t instruction){
 			break;
 
         /* RRA = ROR combined with ADC */
-        case RRA_XIND_ILL:
+        case RRA_INDX_ILL:
             VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to execute unimplemented illegal opcode. Continuing with no effect.");
 			break;
         case RRA_INDY_ILL:
@@ -935,7 +1113,7 @@ int CPU::execute_instruction(uint8_t instruction){
 			break;
 
         /* SAX */
-        case SAX_XIND_ILL:
+        case SAX_INDX_ILL:
             VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to execute unimplemented illegal opcode. Continuing with no effect.");
 			break;
         case SAX_ZPG_ILL:
@@ -949,7 +1127,7 @@ int CPU::execute_instruction(uint8_t instruction){
             /* LAX = LDA combined with LDX */
             VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to execute unimplemented illegal opcode. Continuing with no effect.");
 			break;
-        case LAX_XIND_ILL:
+        case LAX_INDX_ILL:
             VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to execute unimplemented illegal opcode. Continuing with no effect.");
 			break;
         case LAX_INDY_ILL:
@@ -969,7 +1147,7 @@ int CPU::execute_instruction(uint8_t instruction){
             /* DCP = LDA combined with TSX */
             VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to execute unimplemented illegal opcode. Continuing with no effect.");
 			break;
-        case DCP_XIND_ILL:
+        case DCP_INDX_ILL:
             VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to execute unimplemented illegal opcode. Continuing with no effect.");
 			break;
         case DCP_INDY_ILL:
@@ -992,7 +1170,7 @@ int CPU::execute_instruction(uint8_t instruction){
 			break;
 
         /* ISC = INC combined with SBC */
-        case ISC_XIND_ILL:
+        case ISC_INDX_ILL:
             VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to execute unimplemented illegal opcode. Continuing with no effect.");
 			break;
         case ISC_INDY_ILL:
@@ -1063,27 +1241,27 @@ int CPU::execute_instruction(uint8_t instruction){
             VNES_LOG::LOG(VNES_LOG::FATAL, "Got unreachable instruction! How is this possible??? Bad instruction was %s\n", instruction);
             break;
     }
-    VNES_LOG::LOG(VNES_LOG::ERROR, "Cycle counting not implemented yet! Returning 1 cycle passed");
-    return 1;
+    //VNES_LOG::LOG(VNES_LOG::ERROR, "Cycle counting not implemented yet! Returning 1 cycle passed");
+    return 0;
 } // execute_instruction
 
 
 void CPU::LDA(enum ADDRESSING_MODE mode){
-    accumulator = read_mem(fetch_address(mode));
+    accumulator = read_mem(fetch_address(mode, AddrModeVec{ABSX, ABSY, INDY}));
     zero_f      = (accumulator == 0);
-    negative_f  = (accumulator & 0b10000000) ? 1 : 0;
+    negative_f  = (accumulator & 0b10000000);
 }
 
 void CPU::LDX(enum ADDRESSING_MODE mode){
-    index_X = read_mem(fetch_address(mode));
-    zero_f      = (index_X == 0) ? 1 : 0;
-    negative_f  = (index_X & 0b10000000) ? 1 : 0;
+    index_X = read_mem(fetch_address(mode, AddrModeVec{ABSY}));
+    zero_f      = (index_X == 0);
+    negative_f  = (index_X & 0b10000000);
 }
 
 void CPU::LDY(enum ADDRESSING_MODE mode){
-    index_Y = read_mem(fetch_address(mode));
-    zero_f      = (index_Y == 0) ? 1 : 0;
-    negative_f  = (index_Y & 0b10000000) ? 1 : 0;
+    index_Y = read_mem(fetch_address(mode, AddrModeVec{ABSX}));
+    zero_f      = (index_Y == 0);
+    negative_f  = (index_Y & 0b10000000);
 }
 
 void CPU::STA(enum ADDRESSING_MODE mode){
@@ -1102,34 +1280,34 @@ void CPU::STY(enum ADDRESSING_MODE mode){
 /* Register Transfers */
 void CPU::TAX(){
     index_X = accumulator;
-    zero_f      = (index_X == 0) ? 1 : 0;
-    negative_f  = (index_X & 0b10000000) ? 1 : 0;
+    zero_f      = (index_X == 0);
+    negative_f  = (index_X & 0b10000000);
 }
 
 void CPU::TAY(){
     index_Y = accumulator;
-    zero_f      = (index_Y == 0) ? 1 : 0;
-    negative_f  = (index_Y & 0b10000000) ? 1 : 0;
+    zero_f      = (index_Y == 0);
+    negative_f  = (index_Y & 0b10000000);
 }
 
 void CPU::TXA(){
     accumulator = index_X;
-    zero_f      = (accumulator == 0) ? 1 : 0;
-    negative_f  = (accumulator & 0b10000000) ? 1 : 0;
+    zero_f      = (accumulator == 0);
+    negative_f  = (accumulator & 0b10000000);
 }
 
 void CPU::TYA(){
     accumulator = index_Y;
-    zero_f      = (accumulator == 0) ? 1 : 0;
-    negative_f  = (accumulator & 0b10000000) ? 1 : 0;
+    zero_f      = (accumulator == 0);
+    negative_f  = (accumulator & 0b10000000);
 }
 
 
 /* Stack Operations */
 void CPU::TSX(){
     index_X = stack_pointer;
-    zero_f      = (index_X == 0) ? 1 : 0;
-    negative_f  = (index_X & 0b10000000) ? 1 : 0;
+    zero_f      = (index_X == 0);
+    negative_f  = (index_X & 0b10000000);
 }
 
 void CPU::TXS(){
@@ -1147,8 +1325,8 @@ void CPU::PHP(){
 void CPU::PLA(){
     VNES_LOG::LOG(VNES_LOG::Severity::WARN, "Am I implemented correctly? What does 'pull accumulator from stack' mean?");
     accumulator = pop_stack();
-    zero_f = (accumulator == 0) ? 1 : 0;
-    negative_f = (accumulator & 0b10000000) ? 1 : 0;
+    zero_f = (accumulator == 0);
+    negative_f = (accumulator & 0b10000000);
 }
 
 void CPU::PLP(){
@@ -1159,46 +1337,47 @@ void CPU::PLP(){
 
 /* Logical */
 void CPU::AND(enum ADDRESSING_MODE mode){
-    accumulator = accumulator & read_mem(fetch_address(mode));
+    accumulator = accumulator & read_mem(fetch_address(mode, AddrModeVec{ABSX, ABSY, INDY}));
     zero_f      = (accumulator == 0);
-    negative_f  = (accumulator & 0b10000000) ? 1 : 0;
+    negative_f  = (accumulator & 0b10000000);
 }
 
 void CPU::EOR(enum ADDRESSING_MODE mode){
-    accumulator = accumulator ^ read_mem(fetch_address(mode));
+    accumulator = accumulator ^ read_mem(fetch_address(mode, AddrModeVec{ABSX, ABSY, INDY}));
     zero_f      = (accumulator == 0);
-    negative_f  = (accumulator & 0b10000000) ? 1 : 0;
+    negative_f  = (accumulator & 0b10000000);
 }
 
 void CPU::ORA(enum ADDRESSING_MODE mode){
-    accumulator = accumulator | read_mem(fetch_address(mode));
+    accumulator = accumulator | read_mem(fetch_address(mode, AddrModeVec{ABSX, ABSY, INDY}));
     zero_f      = (accumulator == 0);
-    negative_f  = (accumulator & 0b10000000) ? 1 : 0;
+    negative_f  = (accumulator & 0b10000000);
 }
 
 void CPU::BIT(enum ADDRESSING_MODE mode){
     uint8_t val = read_mem(fetch_address(mode));
     uint8_t result = accumulator & val;
     zero_f      = (result == 0);
-    negative_f  = (val & 0b10000000) ? 1 : 0;
-    overflow_f  = (val & 0b01000000) ? 1 : 0;
+    negative_f  = (val & 0b10000000);
+    overflow_f  = (val & 0b01000000);
 }
 
 
 /* Arithmetic */
 void CPU::ADC(enum ADDRESSING_MODE mode){
     // get the result as uint16_t so we can more easily check overflow
-    uint16_t result = (uint16_t)accumulator + read_mem(fetch_address(mode)) + (uint16_t)carry_f;
-    carry_f     = ((uint8_t)result & 0b100000000) ? 1 : 0; // carry_f = result[8]
+    uint16_t result = (uint16_t)accumulator + read_mem(fetch_address(mode, AddrModeVec{ABSX, ABSY, INDY}));
+    result          += (uint16_t)carry_f;
+    carry_f     = ((uint8_t)result & 0b100000000); // carry_f = result[8]
     overflow_f  = (accumulator & 0b10000000) != ((uint8_t)result & 0b10000000);
-    negative_f  = ((uint8_t)result & 0b10000000) ? 1 : 0;
+    negative_f  = ((uint8_t)result & 0b10000000);
     zero_f      = ((uint8_t)result == 0);
     accumulator = (uint8_t)result;
 }
 
 // this is kinda a mess but it works
 void CPU::SBC(enum ADDRESSING_MODE mode){
-    uint8_t data = read_mem(fetch_address(mode));
+    uint8_t data = read_mem(fetch_address(mode, AddrModeVec{ABSX, ABSY, INDY}));
 
     // sign 2's complement
     uint8_t sign_2_subtractor = ((data + carry_f) ^ 0xFF) + 1;
@@ -1214,7 +1393,7 @@ void CPU::SBC(enum ADDRESSING_MODE mode){
 }
 
 void CPU::CMP(enum ADDRESSING_MODE mode){
-    uint8_t data = read_mem(fetch_address(mode));
+    uint8_t data = read_mem(fetch_address(mode, AddrModeVec{ABSX, ABSY, INDY}));
     zero_f      = (accumulator == data);
     negative_f  = ((accumulator - data) & 0b10000000);
     carry_f     = (accumulator >= data);
@@ -1389,6 +1568,8 @@ void CPU::RTS(){
 void CPU::branch(bit condition){
     if(condition){
         int8_t rel_addr = fetch_address(REL);
+        frame_cycles++; // add cycle if branch taken
+        add_cycle_if_page_crossed(program_counter - 1, rel_addr, REL, AddrModeVec{REL}); // add cycle if branch crosses page
         program_counter += rel_addr;
     }else{
         program_counter++;
@@ -1466,7 +1647,7 @@ void CPU::BRK(){
 }
 
 void CPU::NOP(){
-    VNES_LOG::LOG(VNES_LOG::ERROR, "NOP is not implemented since cycles are unimplemented. NOP should consume a CPU cycle.");
+    // what, you looking for something here?
 }
 
 void CPU::RTI(){

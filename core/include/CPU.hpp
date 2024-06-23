@@ -4,6 +4,7 @@
 #include "../RAM.cpp"
 #include "../PPU.cpp"
 #include "../../common/typedefs.hpp"
+#include <string>
 
 
 // The NES CPU is a modified version of the MOS 6502 called the Ricoh 2A03.
@@ -43,7 +44,7 @@ class CPU{
         bit negative_f;
     public: 
         uint8_t status_as_int(); // returns the packed status register
-        void set_status_reg(uint8_t data); 
+        void    set_status_reg(uint8_t data); 
     private:
 
         uint64_t frame_cycles;
@@ -60,7 +61,7 @@ class CPU{
             IMM,        // Immediate
             IMPL,       // Implied
             IND,        // Indirect
-            XIND,       // X-indexed, indirect
+            INDX,       // X-indexed, indirect
             INDY,       // Indirect, Y-indexed
             REL,        // Relative
             ZPG,        // Zeropage
@@ -68,7 +69,9 @@ class CPU{
             ZPGY        // Zeropage, Y-indexed
         };
 
-        uint16_t    fetch_address(enum ADDRESSING_MODE mode);
+        typedef     std::vector<enum ADDRESSING_MODE> AddrModeVec;
+        uint16_t    fetch_address(enum ADDRESSING_MODE mode, const AddrModeVec& page_crossing_modes);
+        void        add_cycle_if_page_crossed(uint16_t base_addr, uint16_t offset, CPU::ADDRESSING_MODE mode, const AddrModeVec& modes);
         uint8_t     read_mem(uint16_t addr);
         void        write_mem(uint16_t addr, uint8_t data);
         void        push_stack(uint8_t data);
@@ -99,7 +102,7 @@ class CPU{
              * OPCODE_ADDRMODE = HEX // OPERATION, UPDATED FLAGS - ADDR MODE (if exclusive)
              */
             /* Load/Store */
-            LDA_XIND = 0xA1,    // Load Accumulator 	N,Z
+            LDA_INDX = 0xA1,    // Load Accumulator 	N,Z
             LDA_ZPG  = 0xA5,    
             LDA_IMM  = 0xA9,    
             LDA_ABS  = 0xAD,    
@@ -117,7 +120,7 @@ class CPU{
             LDY_ABS  = 0xAC, 	
             LDY_ZPGX = 0xB4, 	
             LDY_ABSX = 0xBC, 	
-            STA_XIND = 0x81, 	// Store Accumulator 	 
+            STA_INDX = 0x81, 	// Store Accumulator 	 
             STA_ZPG  = 0x85, 	 	 
             STA_ABS  = 0x8D, 	 	 
             STA_INDY = 0x91, 	 	 
@@ -146,7 +149,7 @@ class CPU{
             PLP_IMPL = 0x28, 	    // Pull processor status from stack All
 
             /* Logical */
-            AND_XIND = 0x21, 	    // Logical AND 	            N,Z
+            AND_INDX = 0x21, 	    // Logical AND 	            N,Z
             AND_ZPG  = 0x25, 	    
             AND_IMM  = 0x29, 	    
             AND_ABS  = 0x2D, 	    
@@ -154,7 +157,7 @@ class CPU{
             AND_ZPGX = 0x35, 	    
             AND_ABSY = 0x39, 	    
             AND_ABSX = 0x3D, 	    
-            EOR_XIND = 0x41, 	    // Exclusive OR 	        N,Z
+            EOR_INDX = 0x41, 	    // Exclusive OR 	        N,Z
             EOR_ZPG  = 0x45, 	    
             EOR_IMM  = 0x49, 	    
             EOR_ABS  = 0x4D, 	    
@@ -162,7 +165,7 @@ class CPU{
             EOR_ZPGX = 0x55, 	    
             EOR_ABSY = 0x59, 	    
             EOR_ABSX = 0x5D, 	    
-            ORA_XIND = 0x01, 	    // Logical Inclusive OR 	N,Z
+            ORA_INDX = 0x01, 	    // Logical Inclusive OR 	N,Z
             ORA_ZPG  = 0x05, 	    
             ORA_IMM  = 0x09, 	    
             ORA_ABS  = 0x0D, 	    
@@ -174,7 +177,7 @@ class CPU{
             BIT_ABS  = 0x2C, 	    
 
             /* Arithmetic */
-            ADC_XIND = 0x61, 	    // Add with Carry 	    N,V,Z,C 
+            ADC_INDX = 0x61, 	    // Add with Carry 	    N,V,Z,C 
             ADC_ZPG  = 0x65, 	    
             ADC_IMM  = 0x69, 	    
             ADC_ABS  = 0x6D, 	    
@@ -182,7 +185,7 @@ class CPU{
             ADC_ZPGX = 0x75, 	    
             ADC_ABSY = 0x79, 	    
             ADC_ABSX = 0x7D, 	    
-            SBC_XIND = 0xE1, 	    // Subtract with Carry 	N,V,Z,C
+            SBC_INDX = 0xE1, 	    // Subtract with Carry 	N,V,Z,C
             SBC_ZPG  = 0xE5, 	    
             SBC_IMM  = 0xE9, 	    
             SBC_ABS  = 0xED, 	    
@@ -190,7 +193,7 @@ class CPU{
             SBC_ZPGX = 0xF5, 	    
             SBC_ABSY = 0xF9, 	    
             SBC_ABSX = 0xFD, 	    
-            CMP_XIND = 0xC1, 	    // Compare accumulator 	N,Z,C
+            CMP_INDX = 0xC1, 	    // Compare accumulator 	N,Z,C
             CMP_ZPG  = 0xC5, 	    
             CMP_IMM  = 0xC9, 	    
             CMP_ABS  = 0xCD, 	    
@@ -317,7 +320,7 @@ class CPU{
 
             // TODO: compile remaining illegal opcodes 
             /* SLO = ASL combined with ORA */
-            SLO_XIND_ILL = 0x03,
+            SLO_INDX_ILL = 0x03,
             SLO_INDY_ILL = 0x13,
             SLO_ZPG_ILL  = 0x07,
             SLO_ZPGX_ILL = 0x17,
@@ -326,7 +329,7 @@ class CPU{
             SLO_ABSX_ILL = 0x1F,
 
             /* RLA = AND combined with ROL */
-            RLA_XIND_ILL = 0x23,
+            RLA_INDX_ILL = 0x23,
             RLA_INDY_ILL = 0x33,
             RLA_ZPG_ILL  = 0x27,
             RLA_ZPGX_ILL = 0x37,
@@ -335,7 +338,7 @@ class CPU{
             RLA_ABSX_ILL = 0x3F,
 
             /* SRE = LSR combined with EOR */
-            SRE_XIND_ILL = 0x43,
+            SRE_INDX_ILL = 0x43,
             SRE_INDY_ILL = 0x53,
             SRE_ZPG_ILL  = 0x47,
             SRE_ZPGX_ILL = 0x57,
@@ -344,7 +347,7 @@ class CPU{
             SRE_ABSX_ILL = 0x5F,
 
             /* RRA = ROR combined with ADC */
-            RRA_XIND_ILL = 0x63,
+            RRA_INDX_ILL = 0x63,
             RRA_INDY_ILL = 0x73,
             RRA_ZPG_ILL  = 0x67,
             RRA_ZPGX_ILL = 0x77,
@@ -353,13 +356,13 @@ class CPU{
             RRA_ABSX_ILL = 0x7F,
 
             /* SAX */
-            SAX_XIND_ILL = 0x83,
+            SAX_INDX_ILL = 0x83,
             SAX_ZPG_ILL = 0x87,
             SAX_ZPGY_ILL = 0x97,
             SAX_ABS_ILL = 0x8F,
 
             /* LAX = LDA combined with LDX */
-            LAX_XIND_ILL = 0xA3,
+            LAX_INDX_ILL = 0xA3,
             LAX_INDY_ILL = 0xB3,
             LAX_ZPG_ILL  = 0xA7,
             LAX_ZPGY_ILL = 0xB7,
@@ -367,7 +370,7 @@ class CPU{
             LAX_ABSY_ILL = 0xBF,
 
             /* DCP = LDA combined with TSX */
-            DCP_XIND_ILL = 0xC3,
+            DCP_INDX_ILL = 0xC3,
             DCP_INDY_ILL = 0xD3,
             DCP_ZPG_ILL  = 0xC7,
             DCP_ZPGX_ILL = 0xD7,
@@ -376,7 +379,7 @@ class CPU{
             DCP_ABSX_ILL = 0xDF,
 
             /* ISC = INC combined with SBC */
-            ISC_XIND_ILL = 0xE3,
+            ISC_INDX_ILL = 0xE3,
             ISC_INDY_ILL = 0xF3,
             ISC_ZPG_ILL  = 0xE7,
             ISC_ZPGX_ILL = 0xF7,
@@ -511,5 +514,276 @@ class CPU{
         void LAS_ILL();
         void SBX_ILL();
         void USBC_ILL();
+
+        // allow opcode enums to have their name printed
+    public:
+        friend std::ostream& operator<<(std::ostream& out, const enum OPCODE value);
+
 };
+
+// make ADDRESSING_MODE enums printable
+std::ostream& operator<<(std::ostream& out, const CPU::OPCODE value){
+    // wow this sucks, but whatever it works and its not very important
+    std::string str {};
+    switch(value){
+        case CPU::LDA_INDX: str = std::string("LDA_INDX"); return out << str;
+        case CPU::LDA_ZPG: str = std::string("LDA_ZPG"); return out << str;
+        case CPU::LDA_IMM: str = std::string("LDA_IMM"); return out << str;
+        case CPU::LDA_ABS: str = std::string("LDA_ABS"); return out << str;
+        case CPU::LDA_INDY: str = std::string("LDA_INDY"); return out << str;
+        case CPU::LDA_ZPGX: str = std::string("LDA_ZPGX"); return out << str;
+        case CPU::LDA_ABSY: str = std::string("LDA_ABSY"); return out << str;
+        case CPU::LDA_ABSX: str = std::string("LDA_ABSX"); return out << str;
+        case CPU::LDX_IMM: str = std::string("LDX_IMM"); return out << str;
+        case CPU::LDX_ZPG: str = std::string("LDX_ZPG"); return out << str;
+        case CPU::LDX_ABS: str = std::string("LDX_ABS"); return out << str;
+        case CPU::LDX_ZPGY: str = std::string("LDX_ZPGY"); return out << str;
+        case CPU::LDX_ABSY: str = std::string("LDX_ABSY"); return out << str;
+        case CPU::LDY_IMM: str = std::string("LDY_IMM"); return out << str;
+        case CPU::LDY_ZPG: str = std::string("LDY_ZPG"); return out << str;
+        case CPU::LDY_ABS: str = std::string("LDY_ABS"); return out << str;
+        case CPU::LDY_ZPGX: str = std::string("LDY_ZPGX"); return out << str;
+        case CPU::LDY_ABSX: str = std::string("LDY_ABSX"); return out << str;
+        case CPU::STA_INDX: str = std::string("STA_INDX"); return out << str;
+        case CPU::STA_ZPG: str = std::string("STA_ZPG"); return out << str;
+        case CPU::STA_ABS: str = std::string("STA_ABS"); return out << str;
+        case CPU::STA_INDY: str = std::string("STA_INDY"); return out << str;
+        case CPU::STA_ZPGX: str = std::string("STA_ZPGX"); return out << str;
+        case CPU::STA_ABSY: str = std::string("STA_ABSY"); return out << str;
+        case CPU::STA_ABSX: str = std::string("STA_ABSX"); return out << str;
+        case CPU::STX_ZPG: str = std::string("STX_ZPG"); return out << str;
+        case CPU::STX_ABS: str = std::string("STX_ABS"); return out << str;
+        case CPU::STX_ZPGY: str = std::string("STX_ZPGY"); return out << str;
+        case CPU::STY_ZPG: str = std::string("STY_ZPG"); return out << str;
+        case CPU::STY_ABS: str = std::string("STY_ABS"); return out << str;
+        case CPU::STY_ZPGX: str = std::string("STY_ZPGX"); return out << str;
+        case CPU::TAX_IMPL: str = std::string("TAX_IMPL"); return out << str;
+        case CPU::TAY_IMPL: str = std::string("TAY_IMPL"); return out << str;
+        case CPU::TXA_IMPL: str = std::string("TXA_IMPL"); return out << str;
+        case CPU::TYA_IMPL: str = std::string("TYA_IMPL"); return out << str;
+        case CPU::TSX_IMPL: str = std::string("TSX_IMPL"); return out << str;
+        case CPU::TXS_IMPL: str = std::string("TXS_IMPL"); return out << str;
+        case CPU::PHA_IMPL: str = std::string("PHA_IMPL"); return out << str;
+        case CPU::PHP_IMPL: str = std::string("PHP_IMPL"); return out << str;
+        case CPU::PLA_IMPL: str = std::string("PLA_IMPL"); return out << str;
+        case CPU::PLP_IMPL: str = std::string("PLP_IMPL"); return out << str;
+        case CPU::AND_INDX: str = std::string("AND_INDX"); return out << str;
+        case CPU::AND_ZPG: str = std::string("AND_ZPG"); return out << str;
+        case CPU::AND_IMM: str = std::string("AND_IMM"); return out << str;
+        case CPU::AND_ABS: str = std::string("AND_ABS"); return out << str;
+        case CPU::AND_INDY: str = std::string("AND_INDY"); return out << str;
+        case CPU::AND_ZPGX: str = std::string("AND_ZPGX"); return out << str;
+        case CPU::AND_ABSY: str = std::string("AND_ABSY"); return out << str;
+        case CPU::AND_ABSX: str = std::string("AND_ABSX"); return out << str;
+        case CPU::EOR_INDX: str = std::string("EOR_INDX"); return out << str;
+        case CPU::EOR_ZPG: str = std::string("EOR_ZPG"); return out << str;
+        case CPU::EOR_IMM: str = std::string("EOR_IMM"); return out << str;
+        case CPU::EOR_ABS: str = std::string("EOR_ABS"); return out << str;
+        case CPU::EOR_INDY: str = std::string("EOR_INDY"); return out << str;
+        case CPU::EOR_ZPGX: str = std::string("EOR_ZPGX"); return out << str;
+        case CPU::EOR_ABSY: str = std::string("EOR_ABSY"); return out << str;
+        case CPU::EOR_ABSX: str = std::string("EOR_ABSX"); return out << str;
+        case CPU::ORA_INDX: str = std::string("ORA_INDX"); return out << str;
+        case CPU::ORA_ZPG: str = std::string("ORA_ZPG"); return out << str;
+        case CPU::ORA_IMM: str = std::string("ORA_IMM"); return out << str;
+        case CPU::ORA_ABS: str = std::string("ORA_ABS"); return out << str;
+        case CPU::ORA_INDY: str = std::string("ORA_INDY"); return out << str;
+        case CPU::ORA_ZPGX: str = std::string("ORA_ZPGX"); return out << str;
+        case CPU::ORA_ABSY: str = std::string("ORA_ABSY"); return out << str;
+        case CPU::ORA_ABSX: str = std::string("ORA_ABSX"); return out << str;
+        case CPU::BIT_ZPG: str = std::string("BIT_ZPG"); return out << str;
+        case CPU::BIT_ABS: str = std::string("BIT_ABS"); return out << str;
+        case CPU::ADC_INDX: str = std::string("ADC_INDX"); return out << str;
+        case CPU::ADC_ZPG: str = std::string("ADC_ZPG"); return out << str;
+        case CPU::ADC_IMM: str = std::string("ADC_IMM"); return out << str;
+        case CPU::ADC_ABS: str = std::string("ADC_ABS"); return out << str;
+        case CPU::ADC_INDY: str = std::string("ADC_INDY"); return out << str;
+        case CPU::ADC_ZPGX: str = std::string("ADC_ZPGX"); return out << str;
+        case CPU::ADC_ABSY: str = std::string("ADC_ABSY"); return out << str;
+        case CPU::ADC_ABSX: str = std::string("ADC_ABSX"); return out << str;
+        case CPU::SBC_INDX: str = std::string("SBC_INDX"); return out << str;
+        case CPU::SBC_ZPG: str = std::string("SBC_ZPG"); return out << str;
+        case CPU::SBC_IMM: str = std::string("SBC_IMM"); return out << str;
+        case CPU::SBC_ABS: str = std::string("SBC_ABS"); return out << str;
+        case CPU::SBC_INDY: str = std::string("SBC_INDY"); return out << str;
+        case CPU::SBC_ZPGX: str = std::string("SBC_ZPGX"); return out << str;
+        case CPU::SBC_ABSY: str = std::string("SBC_ABSY"); return out << str;
+        case CPU::SBC_ABSX: str = std::string("SBC_ABSX"); return out << str;
+        case CPU::CMP_INDX: str = std::string("CMP_INDX"); return out << str;
+        case CPU::CMP_ZPG: str = std::string("CMP_ZPG"); return out << str;
+        case CPU::CMP_IMM: str = std::string("CMP_IMM"); return out << str;
+        case CPU::CMP_ABS: str = std::string("CMP_ABS"); return out << str;
+        case CPU::CMP_INDY: str = std::string("CMP_INDY"); return out << str;
+        case CPU::CMP_ZPGX: str = std::string("CMP_ZPGX"); return out << str;
+        case CPU::CMP_ABSY: str = std::string("CMP_ABSY"); return out << str;
+        case CPU::CMP_ABSX: str = std::string("CMP_ABSX"); return out << str;
+        case CPU::CPX_IMM: str = std::string("CPX_IMM"); return out << str;
+        case CPU::CPX_ZPG: str = std::string("CPX_ZPG"); return out << str;
+        case CPU::CPX_ABS: str = std::string("CPX_ABS"); return out << str;
+        case CPU::CPY_IMM: str = std::string("CPY_IMM"); return out << str;
+        case CPU::CPY_ZPG: str = std::string("CPY_ZPG"); return out << str;
+        case CPU::CPY_ABS: str = std::string("CPY_ABS"); return out << str;
+        case CPU::INC_ZPG: str = std::string("INC_ZPG"); return out << str;
+        case CPU::INC_ABS: str = std::string("INC_ABS"); return out << str;
+        case CPU::INC_ZPGX: str = std::string("INC_ZPGX"); return out << str;
+        case CPU::INC_ABSX: str = std::string("INC_ABSX"); return out << str;
+        case CPU::INX_IMPL: str = std::string("INX_IMPL"); return out << str;
+        case CPU::INY_IMPL: str = std::string("INY_IMPL"); return out << str;
+        case CPU::DEC_ZPG: str = std::string("DEC_ZPG"); return out << str;
+        case CPU::DEC_ABS: str = std::string("DEC_ABS"); return out << str;
+        case CPU::DEC_ZPGX: str = std::string("DEC_ZPGX"); return out << str;
+        case CPU::DEC_ABSX: str = std::string("DEC_ABSX"); return out << str;
+        case CPU::DEX_IMPL: str = std::string("DEX_IMPL"); return out << str;
+        case CPU::DEY_IMPL: str = std::string("DEY_IMPL"); return out << str;
+        case CPU::ASL_ZPG: str = std::string("ASL_ZPG"); return out << str;
+        case CPU::ASL_ACC: str = std::string("ASL_ACC"); return out << str;
+        case CPU::ASL_ABS: str = std::string("ASL_ABS"); return out << str;
+        case CPU::ASL_ZPGX: str = std::string("ASL_ZPGX"); return out << str;
+        case CPU::ASL_ABSX: str = std::string("ASL_ABSX"); return out << str;
+        case CPU::LSR_ZPG: str = std::string("LSR_ZPG"); return out << str;
+        case CPU::LSR_ACC: str = std::string("LSR_ACC"); return out << str;
+        case CPU::LSR_ABS: str = std::string("LSR_ABS"); return out << str;
+        case CPU::LSR_ZPGX: str = std::string("LSR_ZPGX"); return out << str;
+        case CPU::LSR_ABSX: str = std::string("LSR_ABSX"); return out << str;
+        case CPU::ROL_ZPG: str = std::string("ROL_ZPG"); return out << str;
+        case CPU::ROL_ACC: str = std::string("ROL_ACC"); return out << str;
+        case CPU::ROL_ABS: str = std::string("ROL_ABS"); return out << str;
+        case CPU::ROL_ZPGX: str = std::string("ROL_ZPGX"); return out << str;
+        case CPU::ROL_ABSX: str = std::string("ROL_ABSX"); return out << str;
+        case CPU::ROR_ZPG: str = std::string("ROR_ZPG"); return out << str;
+        case CPU::ROR_ACC: str = std::string("ROR_ACC"); return out << str;
+        case CPU::ROR_ABS: str = std::string("ROR_ABS"); return out << str;
+        case CPU::ROR_ZPGX: str = std::string("ROR_ZPGX"); return out << str;
+        case CPU::ROR_ABSX: str = std::string("ROR_ABSX"); return out << str;
+        case CPU::JMP_ABS: str = std::string("JMP_ABS"); return out << str;
+        case CPU::JMP_IND: str = std::string("JMP_IND"); return out << str;
+        case CPU::JSR_ABS: str = std::string("JSR_ABS"); return out << str;
+        case CPU::RTS_IMPL: str = std::string("RTS_IMPL"); return out << str;
+        case CPU::BCC_REL: str = std::string("BCC_REL"); return out << str;
+        case CPU::BCS_REL: str = std::string("BCS_REL"); return out << str;
+        case CPU::BEQ_REL: str = std::string("BEQ_REL"); return out << str;
+        case CPU::BMI_REL: str = std::string("BMI_REL"); return out << str;
+        case CPU::BNE_REL: str = std::string("BNE_REL"); return out << str;
+        case CPU::BPL_REL: str = std::string("BPL_REL"); return out << str;
+        case CPU::BVC_REL: str = std::string("BVC_REL"); return out << str;
+        case CPU::BVS_REL: str = std::string("BVS_REL"); return out << str;
+        case CPU::CLC_IMPL: str = std::string("CLC_IMPL"); return out << str;
+        case CPU::CLD_IMPL: str = std::string("CLD_IMPL"); return out << str;
+        case CPU::CLI_IMPL: str = std::string("CLI_IMPL"); return out << str;
+        case CPU::CLV_IMPL: str = std::string("CLV_IMPL"); return out << str;
+        case CPU::SEC_IMPL: str = std::string("SEC_IMPL"); return out << str;
+        case CPU::SED_IMPL: str = std::string("SED_IMPL"); return out << str;
+        case CPU::SEI_IMPL: str = std::string("SEI_IMPL"); return out << str;
+        case CPU::BRK_IMPL: str = std::string("BRK_IMPL"); return out << str;
+        case CPU::NOP_IMPL: str = std::string("NOP_IMPL"); return out << str;
+        case CPU::RTI_IMPL: str = std::string("RTI_IMPL"); return out << str;
+        case CPU::NOP_IMM_ILL0: str = std::string("NOP_IMM_ILL0"); return out << str;
+        case CPU::NOP_IMM_ILL1: str = std::string("NOP_IMM_ILL1"); return out << str;
+        case CPU::NOP_IMM_ILL2: str = std::string("NOP_IMM_ILL2"); return out << str;
+        case CPU::NOP_IMM_ILL3: str = std::string("NOP_IMM_ILL3"); return out << str;
+        case CPU::NOP_IMM_ILL4: str = std::string("NOP_IMM_ILL4"); return out << str;
+        case CPU::NOP_ZPG_ILL0: str = std::string("NOP_ZPG_ILL0"); return out << str;
+        case CPU::NOP_ZPG_ILL1: str = std::string("NOP_ZPG_ILL1"); return out << str;
+        case CPU::NOP_ZPG_ILL2: str = std::string("NOP_ZPG_ILL2"); return out << str;
+        case CPU::NOP_ZPGX_ILL0: str = std::string("NOP_ZPGX_ILL0"); return out << str;
+        case CPU::NOP_ZPGX_ILL1: str = std::string("NOP_ZPGX_ILL1"); return out << str;
+        case CPU::NOP_ZPGX_ILL2: str = std::string("NOP_ZPGX_ILL2"); return out << str;
+        case CPU::NOP_ZPGX_ILL3: str = std::string("NOP_ZPGX_ILL3"); return out << str;
+        case CPU::NOP_ZPGX_ILL4: str = std::string("NOP_ZPGX_ILL4"); return out << str;
+        case CPU::NOP_ZPGX_ILL5: str = std::string("NOP_ZPGX_ILL5"); return out << str;
+        case CPU::NOP_IMPL_ILL0: str = std::string("NOP_IMPL_ILL0"); return out << str;
+        case CPU::NOP_IMPL_ILL1: str = std::string("NOP_IMPL_ILL1"); return out << str;
+        case CPU::NOP_IMPL_ILL2: str = std::string("NOP_IMPL_ILL2"); return out << str;
+        case CPU::NOP_IMPL_ILL3: str = std::string("NOP_IMPL_ILL3"); return out << str;
+        case CPU::NOP_IMPL_ILL4: str = std::string("NOP_IMPL_ILL4"); return out << str;
+        case CPU::NOP_IMPL_ILL5: str = std::string("NOP_IMPL_ILL5"); return out << str;
+        case CPU::NOP_ABS_ILL : str = std::string("NOP_ABS_ILL "); return out << str;
+        case CPU::NOP_ABSX_ILL0: str = std::string("NOP_ABSX_ILL0"); return out << str;
+        case CPU::NOP_ABSX_ILL1: str = std::string("NOP_ABSX_ILL1"); return out << str;
+        case CPU::NOP_ABSX_ILL2: str = std::string("NOP_ABSX_ILL2"); return out << str;
+        case CPU::NOP_ABSX_ILL3: str = std::string("NOP_ABSX_ILL3"); return out << str;
+        case CPU::NOP_ABSX_ILL4: str = std::string("NOP_ABSX_ILL4"); return out << str;
+        case CPU::NOP_ABSX_ILL5: str = std::string("NOP_ABSX_ILL5"); return out << str;
+        case CPU::JAM_IMPL_ILL0: str = std::string("JAM_IMPL_ILL0"); return out << str;
+        case CPU::JAM_IMPL_ILL1: str = std::string("JAM_IMPL_ILL1"); return out << str;
+        case CPU::JAM_IMPL_ILL2: str = std::string("JAM_IMPL_ILL2"); return out << str;
+        case CPU::JAM_IMPL_ILL3: str = std::string("JAM_IMPL_ILL3"); return out << str;
+        case CPU::JAM_IMPL_ILL4: str = std::string("JAM_IMPL_ILL4"); return out << str;
+        case CPU::JAM_IMPL_ILL5: str = std::string("JAM_IMPL_ILL5"); return out << str;
+        case CPU::JAM_IMPL_ILL6: str = std::string("JAM_IMPL_ILL6"); return out << str;
+        case CPU::JAM_IMPL_ILL7: str = std::string("JAM_IMPL_ILL7"); return out << str;
+        case CPU::JAM_IMPL_ILL8: str = std::string("JAM_IMPL_ILL8"); return out << str;
+        case CPU::JAM_IMPL_ILL9: str = std::string("JAM_IMPL_ILL9"); return out << str;
+        case CPU::JAM_IMPL_ILL10: str = std::string("JAM_IMPL_ILL10"); return out << str;
+        case CPU::JAM_IMPL_ILL11: str = std::string("JAM_IMPL_ILL11"); return out << str;
+        case CPU::SLO_INDX_ILL: str = std::string("SLO_INDX_ILL"); return out << str;
+        case CPU::SLO_INDY_ILL: str = std::string("SLO_INDY_ILL"); return out << str;
+        case CPU::SLO_ZPG_ILL: str = std::string("SLO_ZPG_ILL"); return out << str;
+        case CPU::SLO_ZPGX_ILL: str = std::string("SLO_ZPGX_ILL"); return out << str;
+        case CPU::SLO_ABSY_ILL: str = std::string("SLO_ABSY_ILL"); return out << str;
+        case CPU::SLO_ABS_ILL: str = std::string("SLO_ABS_ILL"); return out << str;
+        case CPU::SLO_ABSX_ILL: str = std::string("SLO_ABSX_ILL"); return out << str;
+        case CPU::RLA_INDX_ILL: str = std::string("RLA_INDX_ILL"); return out << str;
+        case CPU::RLA_INDY_ILL: str = std::string("RLA_INDY_ILL"); return out << str;
+        case CPU::RLA_ZPG_ILL: str = std::string("RLA_ZPG_ILL"); return out << str;
+        case CPU::RLA_ZPGX_ILL: str = std::string("RLA_ZPGX_ILL"); return out << str;
+        case CPU::RLA_ABSY_ILL: str = std::string("RLA_ABSY_ILL"); return out << str;
+        case CPU::RLA_ABS_ILL: str = std::string("RLA_ABS_ILL"); return out << str;
+        case CPU::RLA_ABSX_ILL: str = std::string("RLA_ABSX_ILL"); return out << str;
+        case CPU::SRE_INDX_ILL: str = std::string("SRE_INDX_ILL"); return out << str;
+        case CPU::SRE_INDY_ILL: str = std::string("SRE_INDY_ILL"); return out << str;
+        case CPU::SRE_ZPG_ILL: str = std::string("SRE_ZPG_ILL"); return out << str;
+        case CPU::SRE_ZPGX_ILL: str = std::string("SRE_ZPGX_ILL"); return out << str;
+        case CPU::SRE_ABSY_ILL: str = std::string("SRE_ABSY_ILL"); return out << str;
+        case CPU::SRE_ABS_ILL: str = std::string("SRE_ABS_ILL"); return out << str;
+        case CPU::SRE_ABSX_ILL: str = std::string("SRE_ABSX_ILL"); return out << str;
+        case CPU::RRA_INDX_ILL: str = std::string("RRA_INDX_ILL"); return out << str;
+        case CPU::RRA_INDY_ILL: str = std::string("RRA_INDY_ILL"); return out << str;
+        case CPU::RRA_ZPG_ILL: str = std::string("RRA_ZPG_ILL"); return out << str;
+        case CPU::RRA_ZPGX_ILL: str = std::string("RRA_ZPGX_ILL"); return out << str;
+        case CPU::RRA_ABSY_ILL: str = std::string("RRA_ABSY_ILL"); return out << str;
+        case CPU::RRA_ABS_ILL: str = std::string("RRA_ABS_ILL"); return out << str;
+        case CPU::RRA_ABSX_ILL: str = std::string("RRA_ABSX_ILL"); return out << str;
+        case CPU::SAX_INDX_ILL: str = std::string("SAX_INDX_ILL"); return out << str;
+        case CPU::SAX_ZPG_ILL: str = std::string("SAX_ZPG_ILL"); return out << str;
+        case CPU::SAX_ZPGY_ILL: str = std::string("SAX_ZPGY_ILL"); return out << str;
+        case CPU::SAX_ABS_ILL: str = std::string("SAX_ABS_ILL"); return out << str;
+        case CPU::LAX_INDX_ILL: str = std::string("LAX_INDX_ILL"); return out << str;
+        case CPU::LAX_INDY_ILL: str = std::string("LAX_INDY_ILL"); return out << str;
+        case CPU::LAX_ZPG_ILL: str = std::string("LAX_ZPG_ILL"); return out << str;
+        case CPU::LAX_ZPGY_ILL: str = std::string("LAX_ZPGY_ILL"); return out << str;
+        case CPU::LAX_ABS_ILL: str = std::string("LAX_ABS_ILL"); return out << str;
+        case CPU::LAX_ABSY_ILL: str = std::string("LAX_ABSY_ILL"); return out << str;
+        case CPU::DCP_INDX_ILL: str = std::string("DCP_INDX_ILL"); return out << str;
+        case CPU::DCP_INDY_ILL: str = std::string("DCP_INDY_ILL"); return out << str;
+        case CPU::DCP_ZPG_ILL: str = std::string("DCP_ZPG_ILL"); return out << str;
+        case CPU::DCP_ZPGX_ILL: str = std::string("DCP_ZPGX_ILL"); return out << str;
+        case CPU::DCP_ABSY_ILL: str = std::string("DCP_ABSY_ILL"); return out << str;
+        case CPU::DCP_ABS_ILL: str = std::string("DCP_ABS_ILL"); return out << str;
+        case CPU::DCP_ABSX_ILL: str = std::string("DCP_ABSX_ILL"); return out << str;
+        case CPU::ISC_INDX_ILL: str = std::string("ISC_INDX_ILL"); return out << str;
+        case CPU::ISC_INDY_ILL: str = std::string("ISC_INDY_ILL"); return out << str;
+        case CPU::ISC_ZPG_ILL: str = std::string("ISC_ZPG_ILL"); return out << str;
+        case CPU::ISC_ZPGX_ILL: str = std::string("ISC_ZPGX_ILL"); return out << str;
+        case CPU::ISC_ABSY_ILL: str = std::string("ISC_ABSY_ILL"); return out << str;
+        case CPU::ISC_ABS_ILL: str = std::string("ISC_ABS_ILL"); return out << str;
+        case CPU::ISC_ABSX_ILL: str = std::string("ISC_ABSX_ILL"); return out << str;
+        case CPU::ANC_IMM_ILL0: str = std::string("ANC_IMM_ILL0"); return out << str;
+        case CPU::ANC_IMM_ILL1: str = std::string("ANC_IMM_ILL1"); return out << str;
+        case CPU::ALR_IMM_ILL: str = std::string("ALR_IMM_ILL"); return out << str;
+        case CPU::ARR_IMM_ILL: str = std::string("ARR_IMM_ILL"); return out << str;
+        case CPU::ANE_IMM_ILL: str = std::string("ANE_IMM_ILL"); return out << str;
+        case CPU::SHA_INDY_ILL: str = std::string("SHA_INDY_ILL"); return out << str;
+        case CPU::SHA_ABSY_ILL: str = std::string("SHA_ABSY_ILL"); return out << str;
+        case CPU::SHY_ABSX_ILL: str = std::string("SHY_ABSX_ILL"); return out << str;
+        case CPU::SHX_ABSY_ILL: str = std::string("SHX_ABSY_ILL"); return out << str;
+        case CPU::TAS_ABSY_ILL: str = std::string("TAS_ABSY_ILL"); return out << str;
+        case CPU::LXA_IMM_ILL: str = std::string("LXA_IMM_ILL"); return out << str;
+        case CPU::LAS_ABSY_ILL: str = std::string("LAS_ABSY_ILL"); return out << str;
+        case CPU::SBX_IMM_ILL: str = std::string("SBX_IMM_ILL"); return out << str;
+        case CPU::USBC_IMM_ILL: str = std::string("USBC_IMM_ILL"); return out << str;
+        default: str = std::string("UNKNOWN"); return out << str; // unreachable 
+    }
+};
+
 

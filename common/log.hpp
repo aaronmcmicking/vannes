@@ -8,7 +8,7 @@
 
 namespace VNES_LOG{
 
-#define LOG(severity, format, ...) log(__FILE__, __LINE__, severity, format, ##__VA_ARGS__)
+#define LOG(severity, format, ...) log(__FILE__, __LINE__, true, severity, format, ##__VA_ARGS__)
 
 enum Severity{
     DEBUG = 1,
@@ -24,11 +24,10 @@ bool file_out = false;
 const std::string log_filename {"vannes.log"};
 
 void init_log(){
-    fclose(fopen(log_filename.c_str(), "w"));
-    
+    if(file_out){ fclose(fopen(log_filename.c_str(), "w")); }
 }
 
-void log(const char* __file__, int __line__, Severity severity, const char* log_str, ...){
+void log(const char* __file__, int __line__, bool newline, Severity severity, const char* log_str, ...){
     std::string sev_label {};
     std::stringstream file_line {};
     switch(severity){
@@ -64,19 +63,21 @@ void log(const char* __file__, int __line__, Severity severity, const char* log_
         va_start(argptr, log_str);
         vfprintf(stdout, log_str, argptr);
         va_end(argptr);
-        printf("\n");
+        if(newline){ printf("\n"); } 
     }
 
     // log file
-    FILE* logfile = fopen(log_filename.c_str(), "a");
-    fprintf(logfile, sev_label.c_str());
-    fprintf(logfile, file_line.str().c_str());
-    va_list argptr;
-    va_start(argptr, log_str);
-    vfprintf(logfile, log_str, argptr);
-    va_end(argptr);
-    fprintf(logfile, "\n");
-    fclose(logfile);
+    if(file_out){
+        FILE* logfile = fopen(log_filename.c_str(), "a");
+        fprintf(logfile, sev_label.c_str());
+        fprintf(logfile, file_line.str().c_str());
+        va_list argptr;
+        va_start(argptr, log_str);
+        vfprintf(logfile, log_str, argptr);
+        va_end(argptr);
+        if(newline){ fprintf(logfile, "\n"); }
+        fclose(logfile);
+    }
 }
 
 }

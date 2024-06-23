@@ -7,7 +7,7 @@
 #include "cartridge/cartridge.cpp"
 #include "mappers/Mapper000.cpp"
 
-void parse_args(int argc, char** argv, std::string& rom_filename, VNES_LOG::Severity& log_level){
+void parse_args(int argc, char** argv, std::string& rom_filename){
     for(int i = 1; i < argc; i++){
         std::string arg {argv[i]};
         int split_pos = arg.find("=");
@@ -18,7 +18,10 @@ void parse_args(int argc, char** argv, std::string& rom_filename, VNES_LOG::Seve
         if(variable == "rom"){
             rom_filename = value;
         }else if(variable == "log_level"){
-            log_level = (VNES_LOG::Severity)std::atoi(value.c_str());
+            VNES_LOG::log_level = (VNES_LOG::Severity)std::atoi(value.c_str());
+        }else if(variable == "log_to_file"){
+            VNES_LOG::file_out = (value == "1");
+            //if(value == "1"){ VNES_LOG::file_out = true; }
         }else{
             VNES_LOG::LOG(VNES_LOG::WARN, "Unknown argument '%s'", variable.c_str());
             VNES_ASSERT(0 && "Bad argument");
@@ -31,10 +34,10 @@ void parse_args(int argc, char** argv, std::string& rom_filename, VNES_LOG::Seve
 int main(int argc, char** argv){
     using namespace VNES_LOG;
 
-    init_log();
 
     std::string rom_filename {"roms/Super Mario Bros. (Japan, USA).nes"};
-    parse_args(argc, argv, rom_filename, VNES_LOG::log_level);
+    parse_args(argc, argv, rom_filename);
+    init_log();
 
     Cartridge cart = Cartridge(rom_filename);
     RAM ram = RAM(cart);
