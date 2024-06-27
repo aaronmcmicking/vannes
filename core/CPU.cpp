@@ -14,6 +14,11 @@ CPU::CPU(RAM& _ram, PPU& _ppu): ram {_ram}, ppu {_ppu}{
 
 void CPU::step(){
     using namespace VNES_LOG;
+
+    if(ppu.check_nmi()){ // start of vblank
+        raise_interrupt(false);
+    }
+
     uint8_t opcode = fetch_instruction();
     LOG(DEBUG, "Fetched opcode 0x%x from address 0x%x", opcode, program_counter);
     uint64_t cycles_before = frame_cycles;
@@ -23,9 +28,7 @@ void CPU::step(){
     LOG(DEBUG, "Opcode consumed %d cycles (%lld this frame)", cycles_done, frame_cycles);
     program_counter++;
 
-    for(int i = 0; i < cycles_done*3; i++){ // 1 cpu cycle = 3 ppu cycles
-        ppu.step();
-    }
+    ppu.do_cycles(cycles_done*3);
 }
 
 inline uint8_t CPU::fetch_instruction(){
@@ -149,6 +152,7 @@ void CPU::raise_interrupt(bool maskable){
         push_stack(status_as_int());
         program_counter = read_nmi_vec();
     }
+    frame_cycles++;
     interrupt_disable_f = 1;
 }
 

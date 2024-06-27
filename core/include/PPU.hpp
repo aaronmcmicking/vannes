@@ -1,11 +1,23 @@
 #pragma once
 
 #include "RAM.hpp"
+#include "../../common/typedefs.hpp"
 
 class PPU{
     public:
         PPU(RAM& _ram);
 
+    public:
+        void power_up();
+        void reset();
+        void do_cycles(int cycles_to_do);
+
+        void    write(uint16_t addr, uint8_t data);
+        uint8_t read(uint16_t addr);
+
+        bool check_nmi();
+
+    private:
         // see https://8bitworkshop.com/blog/platforms/nintendo-nes.md.html for
         // bit-values in specific registers
         enum PPU_regs{
@@ -20,24 +32,24 @@ class PPU{
             PPU_OAM_DMA     = 0x4014   // W 	Sprite Page DMA Transfer 
         };
 
+        RAM& ram;
+        
         uint64_t cycles_since_reset;
         int frame_cycles;
         int scanline_cycles;
-        int scanlines;
+        int scanline;
+        int dot;
 
-        void power_up();
-        void reset();
-        void step();
+        //bool vblank;
+        bool frame_done;
+        bool odd_frame;
+        int buffer[256][224];
 
-        void    write(uint16_t addr, uint8_t data);
-        uint8_t read(uint16_t addr);
+        //bit nmi_occured;
+        //bit nmi_output;
 
-    private:
         void    internal_write(uint16_t addr, uint8_t data);
         uint8_t internal_read(uint16_t addr);
 
-
-    private:
-        RAM& ram;
 
 };
