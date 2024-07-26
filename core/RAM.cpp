@@ -28,11 +28,11 @@ void RAM::write(uint16_t addr, uint8_t data){
         case 0x4000 ... 0x401F: // APU and I/O registers
             break;
         case 0x4020 ... 0xFFFF: // cartridge ROM
-            VNES_LOG::LOG(VNES_LOG::WARN, "RAM.write(): Usually cannot write to read-only ROM address 0x%x, maybe the mapper is allowing this?");
+            VNES_LOG::LOG(VNES_LOG::WARN, "RAM.write(): Usually cannot write to read-only ROM address 0x%x, maybe the mapper is allowing this?", addr);
             cart.write(addr, data);
             break;
         default: // unreachable
-            VNES_LOG::LOG(VNES_LOG::FATAL, "RAM.write(): Bad address 0x%x could not be mapped to mapper or internal RAM! How is this possible??");
+            VNES_LOG::LOG(VNES_LOG::FATAL, "RAM.write(): Bad address 0x%x could not be mapped to mapper or internal RAM! How is this possible??", addr);
             exit(1);
             break;
     }
@@ -50,7 +50,7 @@ uint8_t RAM::read(uint16_t addr){
             return cart.read(addr);
             break;
         default:
-            LOG(FATAL, "RAM.read(): Bad address 0x%x could not be mapped to mapper or internal RAM! How is this possible??");
+            LOG(FATAL, "RAM.read(): Bad address 0x%x could not be mapped to mapper or internal RAM! How is this possible??", addr);
             exit(1);
             break;
     }

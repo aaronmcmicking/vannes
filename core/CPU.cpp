@@ -10,14 +10,16 @@
 CPU::CPU(RAM& _ram, PPU& _ppu): ram {_ram}, ppu {_ppu}{
     VNES_LOG::LOG(VNES_LOG::INFO, "Constructing CPU...");
     power_up();
+    printf("after powerup, PC is (decimal) %u\n", program_counter);
 }
 
 void CPU::step(){
+    //printf("in step, PC is (decimal) %u\n", program_counter);
     using namespace VNES_LOG;
 
-    if(ppu.check_nmi()){ // start of vblank
-        raise_interrupt(false);
-    }
+    //if(ppu.check_nmi()){ // start of vblank
+    //    raise_interrupt(false);
+    //}
 
     uint8_t opcode = fetch_instruction();
     LOG(DEBUG, "Fetched opcode 0x%x from address 0x%x", opcode, program_counter);
@@ -29,6 +31,9 @@ void CPU::step(){
     program_counter++;
 
     ppu.do_cycles(cycles_done*3);
+    LOG(INFO, "%2x  A:%2x X:%2x Y:%2x SP:%2x\n", program_counter, accumulator, index_X, index_Y, stack_pointer);
+    LOG(INFO, "status: %x", status_as_int());
+    //LOG(INFO, "PC:0x%x  A:0x%x X:0x%x Y:0x%x SP:0x%x", program_counter, accumulator, index_X, index_Y, stack_pointer);
 }
 
 inline uint8_t CPU::fetch_instruction(){
@@ -77,6 +82,7 @@ uint16_t CPU::read_reset_vec(){
     data |= read_mem(RAM::VEC_ADDR::RESET_VEC + 1); // HB
     data <<= 8;
     data |= read_mem(RAM::VEC_ADDR::RESET_VEC); // LB
+    printf("read reset vec as (decimal) %u\n", data);
     return data;
 }
 
@@ -113,7 +119,8 @@ void CPU::power_up(){
 void CPU::reset(){
     VNES_LOG::LOG(VNES_LOG::INFO, "Received reset signal");
     program_counter = read_reset_vec();
-    VNES_LOG::LOG(VNES_LOG::INFO, "Loaded RESET Vec to PC. RESET Vec was 0x%x.", read_reset_vec());
+    //VNES_LOG::LOG(VNES_LOG::INFO, "Loaded RESET Vec to PC. RESET Vec was 0x%x.", read_reset_vec());
+    VNES_LOG::LOG(VNES_LOG::INFO, "Loaded RESET Vec to PC. PC is now 0x%x.", program_counter);
     ppu.reset();
 }
 
@@ -1200,7 +1207,10 @@ int CPU::execute_instruction(uint8_t instruction){
 
         /* ANC = AND combined with set C */
         case ANC_IMM_ILL0:
-            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to execute unimplemented illegal opcode. Continuing with no effect.");
+            //VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to execute unimplemented illegal opcode. Continuing with no effect.");
+            VNES_LOG::LOG(VNES_LOG::WARN, "Executing illegal opcode that happens to have implementation.");
+            ANC_ILL();
+            frame_cycles += 2;
 			break;
         case ANC_IMM_ILL1:
             VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to execute unimplemented illegal opcode. Continuing with no effect.");
@@ -1552,6 +1562,7 @@ void CPU::ROR_eACC(){
 /* Jumps & Calls */
 void CPU::JMP(enum ADDRESSING_MODE mode){
     program_counter = fetch_address(mode);
+    program_counter--; // must bring PC back 1 byte to move from 1 to 0-indexing
 }
 
 void CPU::JSR(){
@@ -1561,6 +1572,7 @@ void CPU::JSR(){
     uint8_t PCL = read_mem(++program_counter);
     uint8_t PCH = read_mem(++program_counter);
     program_counter = ((uint16_t)PCH << 8 | PCL);
+    program_counter--; // must bring PC back 1 byte to move from 1 to 0-indexing
 }
 
 void CPU::RTS(){
@@ -1573,11 +1585,13 @@ void CPU::RTS(){
 /* Branches */
 void CPU::branch(bit condition){
     if(condition){
+        VNES_LOG::LOG(VNES_LOG::DEBUG, "branch(): took branch");
         int8_t rel_addr = fetch_address(REL);
         frame_cycles++; // add cycle if branch taken
         add_cycle_if_page_crossed(program_counter - 1, rel_addr, REL, AddrModeVec{REL}); // add cycle if branch crosses page
         program_counter += rel_addr;
     }else{
+        VNES_LOG::LOG(VNES_LOG::DEBUG, "branch(): did NOT take branch");
         program_counter++;
     }
 }
@@ -1706,7 +1720,10 @@ void CPU::ISC_ILL(){
 }
 
 void CPU::ANC_ILL(){
-	VNES_ASSERT(0 && "UNIMPLEMENTED ILLEGAL INSTRUCTION");
+    accumulator = accumulator & read_mem(fetch_address(IMM, AddrModeVec{ABSX, ABSY, INDY}));
+    zero_f      = (accumulator == 0);
+    negative_f  = (accumulator & 0b10000000);
+    carry_f     = (accumulator & 0b10000000);
 }
 
 void CPU::ALR_ILL(){

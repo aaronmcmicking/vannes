@@ -8,6 +8,8 @@ ram.dump
 vannes.log
 nestest.log
 vannes_nestest.txt
+*.log
+*.txt
 
 roms/*
 

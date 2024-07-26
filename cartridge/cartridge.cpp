@@ -68,7 +68,7 @@ void Cartridge::load_rom(std::string filename){
     // check header format
     if(   // if NOT in NES2 format and final 4 bytes of header are NOT zeroes
           !((header.flags_7 | 0b00001100) == 0b00001000) // "If [bits[3:2]] equal to 2, flags 8-15 are in NES 2.0 format"
-       && !(header.padding[2] | header.padding[3] | header.padding[4] | header.padding[5])){
+       && (header.padding[2] | header.padding[3] | header.padding[4] | header.padding[5])){
         LOG(INFO, "Found data in final 4 bytes of cartridge header when header did not select NES2 standard. Sometimes this indicates the ROM complies to an old version of the iNES standard, but may also mean the ROM is malformed or 'authour-signatured'. Clearing mapper number to bottom 4 bits and continuing");
         header.flags_7 &= 0b00001111;
     }
@@ -107,24 +107,46 @@ void Cartridge::load_rom(std::string filename){
     LOG(INFO, "Finished loading ROM.");
 }
 
-void Cartridge::dump_rom(){
-    VNES_LOG::LOG(VNES_LOG::INFO, "Dumping PRG ROM");
-    int count = 0;
-    for(uint8_t byte_: prg_rom){
-        printf("%2x", byte_);
-        if(count && !(count % 2)) printf(" ");
-        if(count && !(count % 16)) printf("\n");
-        count++;
-    }
-    printf("\n\n");
+//void Cartridge::dump_rom(){
+//    VNES_LOG::LOG(VNES_LOG::INFO, "Dumping PRG ROM");
+//    int count = 0;
+//    for(uint8_t byte_: prg_rom){
+//        printf("%2x", byte_);
+//        if(count && !(count % 2)) printf(" ");
+//        if(count && !(count % 16)) printf("\n");
+//        count++;
+//    }
+//    printf("\n\n");
+//
+//    VNES_LOG::LOG(VNES_LOG::INFO, "Dumping CHR ROM");
+//    count = 0;
+//    for(uint8_t byte_: chr_rom){
+//        printf("%2x", byte_);
+//        if(count && !(count % 2)) printf(" ");
+//        if(count && !(count % 16)) printf("\n");
+//        count++;
+//    }
+//    printf("\n");
+//}
 
-    VNES_LOG::LOG(VNES_LOG::INFO, "Dumping CHR ROM");
-    count = 0;
-    for(uint8_t byte_: chr_rom){
-        printf("%2x", byte_);
-        if(count && !(count % 2)) printf(" ");
-        if(count && !(count % 16)) printf("\n");
-        count++;
+void Cartridge::dump_rom(){
+    for(unsigned int i = 0x0000; i < prg_rom.size(); i++){
+        int data1 = prg_rom[i];
+        int data2 = prg_rom[i];
+        i += 0x8000;
+        if(i && !(i % 2)){ printf(" "); }
+        if(!(i % 32)){ 
+            printf("\n0x");
+            if(!(i & 0xF000)){ printf("0"); }
+            if(!(i & 0xFF00)){ printf("0"); }
+            if(!(i & 0xFFF0)){ printf("0"); }
+            printf("%x  ", i); 
+        }
+
+        //int data = read(i);
+        if(!(data1 & 0xF0)){ printf("0"); }
+        printf("%x", data2);
+        i -= 0x8000;
     }
     printf("\n");
 }

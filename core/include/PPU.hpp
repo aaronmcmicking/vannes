@@ -43,7 +43,7 @@ class PPU{
         //bool vblank;
         bool frame_done;
         bool odd_frame;
-        int buffer[256][224];
+        int buffer[256][224]; // x = 256, y = 244, so index as buffer[x][y]
 
         //bit nmi_occured;
         //bit nmi_output;

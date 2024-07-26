@@ -18,7 +18,7 @@ class CPU{
         const bool MASKABLE_IRQ = false; // interrupts are not actually maskable, since implementing masking is hard and im dumb
         void reset();
 
-    private:
+    //private:
         RAM& ram;
         PPU& ppu;
 
