@@ -58,7 +58,6 @@ int main(int argc, char** argv){
     int i = 0;
     (void)i;
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    int steps_to_do = 30000;
     //for(i = 0; i < steps_to_do; i++){
     //    cpu.step();
     //    //fprintf(file, "%4x  A:%2x X:%2x Y:%2x SP:%2x\n", cpu.program_counter, cpu.accumulator, cpu.index_X, cpu.index_Y, cpu.stack_pointer);
@@ -69,17 +68,16 @@ int main(int argc, char** argv){
     //        //break;
     //    }
     //}
+    uint64_t frame_cycles_to_do = 30000;
     int steps_done = 0;
-    while(cpu.frame_cycles < 30000){
+    while(cpu.frame_cycles < frame_cycles_to_do){
         cpu.step();
         steps_done++;
     }
-    steps_to_do = steps_done;
-    steps_to_do = steps_done;
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << steps_to_do << " steps took " << std::chrono::duration_cast<std::chrono::seconds> (end - begin).count() << "s" << std::endl;
-    std::cout << steps_to_do << " steps took " << std::chrono::duration_cast<std::chrono::milliseconds> (end - begin).count() << "ms" << std::endl;
-    std::cout << steps_to_do << " steps took " << std::chrono::duration_cast<std::chrono::microseconds> (end - begin).count() << "µs" << std::endl;
+    std::cout << frame_cycles_to_do << " frame cycles and " << steps_done << " steps took " << std::chrono::duration_cast<std::chrono::seconds> (end - begin).count() << "s" << std::endl;
+    std::cout << frame_cycles_to_do << " frame cycles and " << steps_done << " steps took " << std::chrono::duration_cast<std::chrono::milliseconds> (end - begin).count() << "ms" << std::endl;
+    std::cout << frame_cycles_to_do << " frame cycles and " << steps_done << " steps took " << std::chrono::duration_cast<std::chrono::microseconds> (end - begin).count() << "µs" << std::endl;
     printf("(cpu did %ld cycles since reset)\n", cpu.cycles_since_reset);
 
     uint8_t first_error_code = ram.read(0x0002);

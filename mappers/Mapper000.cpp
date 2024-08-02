@@ -34,7 +34,7 @@ class Mapper000 : public Mapper{
                     }
                     break;
                 default:
-                    LOG(ERROR, "Mapper cannot honour cartridge memory read at out-of-bounds address 0x%x (expected range is 0x4020 to 0xFFFF). Returning 0", addr);
+                    LOG(ERROR, "Mapper cannot read from cartridge memory at out-of-bounds address 0x%x (expected range is 0x4020 to 0xFFFF). Returning 0", addr);
                     return 0;
                     break;
             }
@@ -47,7 +47,7 @@ class Mapper000 : public Mapper{
                     chr_rom[addr % 0x4020] = data;
                     break;
                 case 0x8000 ... 0xFFFF:
-                    LOG(ERROR, "Mapper write to ROM address 0x%x. Write will be allowed as it may be for debug purposes. Data is 0x%x", addr, data);
+                    LOG(WARN, "Mapper write to ROM address 0x%x. Write will be allowed as it may be for debug purposes. Data is 0x%x", addr, data);
                     if(mirror_prg_16kb){
                         prg_rom[(addr % 0x8000) % 0x4000] = data;
                     }else{
@@ -55,7 +55,7 @@ class Mapper000 : public Mapper{
                     }
                     break;
                 default:
-                    LOG(ERROR, "Mapper cannot write to cartridge memory at out-of-bounds 0x%x (expected range is 0x4020 to 0x8000)", addr);
+                    LOG(ERROR, "Mapper cannot write to cartridge memory at out-of-bounds address 0x%x (expected range is 0x4020 to 0x8000)", addr);
                     break;
             }
         }
@@ -65,5 +65,7 @@ class Mapper000 : public Mapper{
         std::vector<uint8_t>& prg_rom;
         std::vector<uint8_t>& chr_rom;
 
+        // if the program data loaded from the cart is less than 16kb, then 
+        // address 0xc000-0xFFFF mirrors 0x8000-0xBFFF
         bool mirror_prg_16kb = false;
 };

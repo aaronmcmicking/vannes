@@ -17,43 +17,60 @@ RAM::RAM(Cartridge& cart): cart {cart} {
 }
 
 void RAM::write(uint16_t addr, uint8_t data){
+    using namespace VNES_LOG;
     switch(addr){
         case 0x0000 ... 0x1FFF: // 2kb program RAM, 4 mirrored sections (each 0x0800 addrs)
-            addr = (addr % 0x0800);
-            mem[addr] = data;
+            mem[(addr % 0x0800)] = data;
             break;
         case 0x2000 ... 0x3FFF: // PPU registers
-            addr = (addr % 0x8) + 0x2000; // mirrors every eight bytes
+            mem[(addr % 0x8) + 0x2000] = data; // mirrors every 8 bytes
+            break;
+        case 0x4000 ... 0x4017: // APU and I/O registers
             mem[addr] = data;
-        case 0x4000 ... 0x401F: // APU and I/O registers
+            break;
+        case 0x4018 ... 0x401F: // Normally APU and I/O, for CPU Test
+            mem[addr] = data;
+            LOG(WARN, "Write to normally unused (CPU Test mode only) address 0x%x", addr);
             break;
         case 0x4020 ... 0xFFFF: // cartridge ROM
-            VNES_LOG::LOG(VNES_LOG::WARN, "RAM.write(): Usually cannot write to read-only ROM address 0x%x, maybe the mapper is allowing this?", addr);
+            LOG(WARN, "RAM.write(): Usually cannot write to read-only ROM address 0x%x, maybe the mapper is allowing this?", addr);
             cart.write(addr, data);
             break;
         default: // unreachable
-            VNES_LOG::LOG(VNES_LOG::FATAL, "RAM.write(): Bad address 0x%x could not be mapped to mapper or internal RAM! How is this possible??", addr);
+            LOG(FATAL, "RAM.write(): Bad address 0x%x could not be mapped to mapper or internal RAM! How is this possible??", addr);
             exit(1);
             break;
     }
+    LOG(DEBUG, "Write value 0x%x to address 0x%x", data, addr);
 }
 
 uint8_t RAM::read(uint16_t addr){
     using namespace VNES_LOG;
+    uint8_t data = 0;
     switch(addr){
-        case 0x0000 ... 0x401F:
-            LOG(DEBUG, "Read value 0x%x from address 0x%x (internal RAM)", mem[addr], addr);
-            return mem[addr];
+        case 0x0000 ... 0x1FFF: // 2kb program RAM, 4 mirrored sections (each 0x0800 addrs)
+            data = mem[(addr % 0x0800)];
+            break;
+        case 0x2000 ... 0x3FFF: // PPU registers
+            data = mem[(addr % 0x8) + 0x2000]; // mirrors every eight bytes
+            break;
+        case 0x4000 ... 0x4017:
+            data = mem[addr];
+            break;
+        case 0x4018 ... 0x401F:
+            LOG(WARN, "Read to normally unused (CPU Test mode only) address 0x%x returns value 0x%x", addr, mem[addr]);
+            data = mem[addr];
             break;
         case 0x4020 ... 0xFFFF:
-            LOG(DEBUG, "Read value 0x%x from address 0x%x (cartridge)", cart.read(addr), addr);
-            return cart.read(addr);
+            data = cart.read(addr);
             break;
         default:
             LOG(FATAL, "RAM.read(): Bad address 0x%x could not be mapped to mapper or internal RAM! How is this possible??", addr);
             exit(1);
             break;
     }
+    LOG(DEBUG, "Read value 0x%x from address 0x%x", data, addr);
+    return data;
 }
 
 void RAM::dump(){

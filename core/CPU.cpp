@@ -10,11 +10,10 @@
 CPU::CPU(RAM& _ram, PPU& _ppu): ram {_ram}, ppu {_ppu}{
     VNES_LOG::LOG(VNES_LOG::INFO, "Constructing CPU...");
     power_up();
-    printf("after powerup, PC is (decimal) %u\n", program_counter);
+    //printf("after powerup, PC is (decimal) %u\n", program_counter);
 }
 
 void CPU::step(){
-    //printf("in step, PC is (decimal) %u\n", program_counter);
     using namespace VNES_LOG;
 
     //if(ppu.check_nmi()){ // start of vblank
@@ -32,8 +31,6 @@ void CPU::step(){
 
     ppu.do_cycles(cycles_done*3);
     LOG(INFO, "%2x  A:%2x X:%2x Y:%2x SP:%2x\n", program_counter, accumulator, index_X, index_Y, stack_pointer);
-    LOG(INFO, "status: %x", status_as_int());
-    //LOG(INFO, "PC:0x%x  A:0x%x X:0x%x Y:0x%x SP:0x%x", program_counter, accumulator, index_X, index_Y, stack_pointer);
 }
 
 inline uint8_t CPU::fetch_instruction(){
@@ -82,7 +79,6 @@ uint16_t CPU::read_reset_vec(){
     data |= read_mem(RAM::VEC_ADDR::RESET_VEC + 1); // HB
     data <<= 8;
     data |= read_mem(RAM::VEC_ADDR::RESET_VEC); // LB
-    printf("read reset vec as (decimal) %u\n", data);
     return data;
 }
 
@@ -109,18 +105,22 @@ void CPU::power_up(){
     // 5 cyles consist of 2 NOPs and 3 stack operations, although these
     // have no effect as the processor is in a disabled state during start-up.
 	VNES_LOG::LOG(VNES_LOG::INFO, "Entered power-up sequence");
-    VNES_LOG::LOG(VNES_LOG::WARN, "Check that I'm implemented right!");
+    VNES_LOG::LOG(VNES_LOG::WARN, "power_up(): Check that I'm implemented right!");
     interrupt_disable_f = 1;
+    stack_pointer = 0x00; // reset() will decrement to 0xFD
+    set_status_reg(0x24);
     //program_counter = read_reset_vec();
     reset();
+    VNES_LOG::LOG(VNES_LOG::DEBUG, "After reset, SP is 0x%x and status reg is 0x%x", stack_pointer, status_as_int());
     VNES_LOG::LOG(VNES_LOG::INFO, "Power-up sequence done");
 }
 
 void CPU::reset(){
     VNES_LOG::LOG(VNES_LOG::INFO, "Received reset signal");
     program_counter = read_reset_vec();
-    //VNES_LOG::LOG(VNES_LOG::INFO, "Loaded RESET Vec to PC. RESET Vec was 0x%x.", read_reset_vec());
     VNES_LOG::LOG(VNES_LOG::INFO, "Loaded RESET Vec to PC. PC is now 0x%x.", program_counter);
+    stack_pointer -= 3;
+    interrupt_disable_f = 1;
     ppu.reset();
 }
 

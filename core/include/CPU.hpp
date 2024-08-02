@@ -78,8 +78,9 @@ class CPU{
         void        push_stack(uint8_t data);
         uint8_t     pop_stack();
 
-        // see https://web.archive.org/web/20200129081101/http://users.telenet.be:80/kim1-6502/6502/proman.html
         // for power-up sequence details
+        // see https://web.archive.org/web/20200129081101/http://users.telenet.be:80/kim1-6502/6502/proman.html
+        // see https://www.nesdev.org/wiki/CPU_power_up_state
         void power_up();
         //void engage_reset();
         //void release_reset();
