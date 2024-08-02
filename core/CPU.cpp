@@ -1389,30 +1389,27 @@ void CPU::BIT(enum ADDRESSING_MODE mode){
 
 /* Arithmetic */
 void CPU::ADC(enum ADDRESSING_MODE mode){
-    // get the result as uint16_t so we can more easily check overflow
-    uint16_t result = (uint16_t)accumulator + read_mem(fetch_address(mode, AddrModeVec{ABSX, ABSY, INDY}));
-    result          += (uint16_t)carry_f;
-    carry_f     = ((uint8_t)result & 0b100000000); // carry_f = result[8]
-    overflow_f  = (accumulator & 0b10000000) != ((uint8_t)result & 0b10000000);
-    negative_f  = ((uint8_t)result & 0b10000000);
+    uint8_t data = read_mem(fetch_address(mode, AddrModeVec{ABSX, ABSY, INDY}));
+    uint16_t result = (uint16_t)data + accumulator + carry_f;
+    carry_f     = (result > 0b11111111); 
+    overflow_f  = (accumulator ^ result) & (data ^ result) & 0b10000000; // if bit 7 changed from both accumulator and data
+    negative_f  = (result & 0b10000000);
     zero_f      = ((uint8_t)result == 0);
     accumulator = (uint8_t)result;
 }
 
-// this is kinda a mess but it works
 void CPU::SBC(enum ADDRESSING_MODE mode){
     uint8_t data = read_mem(fetch_address(mode, AddrModeVec{ABSX, ABSY, INDY}));
 
-    // sign 2's complement
-    uint8_t sign_2_subtractor = ((data + carry_f) ^ 0xFF) + 1;
-    uint16_t result = (uint16_t)accumulator + sign_2_subtractor;
+    // since we are in sign 2's complement, we can do exactly ADC
+    // with the complement of data
+    data ^= 0xFF;
 
-    carry_f     = (( int8_t)result >= 0); // carry_f = result[8]
-    negative_f  = ((uint8_t)result & 0b10000000);
+    uint16_t result = (uint16_t)data + accumulator + carry_f;
+    carry_f     = (result > 0b11111111); 
+    overflow_f  = (accumulator ^ result) & (data ^ result) & 0b10000000; // if bit 7 changed from both accumulator and data
+    negative_f  = (result & 0b10000000);
     zero_f      = ((uint8_t)result == 0);
-    int overflow_check = (int)(int8_t)accumulator - (int)(int8_t)data - carry_f; // weird casting gets signs and bit width correct
-    overflow_f  = (overflow_check < -127 || overflow_check > 127);
-
     accumulator = (uint8_t)result;
 }
 
