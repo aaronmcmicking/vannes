@@ -94,7 +94,7 @@ class CPU{
         uint16_t    read_reset_vec();
         uint16_t    read_brk_vec();
 
-        void raise_interrupt(bool maskable);
+        void raise_interrupt(bool maskable, bool from_instruction);
         void return_from_interrupt();
 
 

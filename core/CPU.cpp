@@ -30,7 +30,11 @@ void CPU::step(){
     program_counter++;
 
     ppu.do_cycles(cycles_done*3);
-    LOG(INFO, "%2x  A:%2x X:%2x Y:%2x SP:%2x\n", program_counter, accumulator, index_X, index_Y, stack_pointer);
+    std::stringstream ss {};
+    ss << (OPCODE)opcode;
+    VNES_LOG::LOG(VNES_LOG::DEBUG, "Executing instruction %s", ss.str().c_str());
+    LOG(INFO, "%x  %s  A:%x X:%x Y:%x P:%x SP:%x\n", program_counter, ss.str().c_str(), accumulator, index_X, index_Y, status_as_int(), stack_pointer);
+    printf("%x  %s  A:%x X:%x Y:%x P:%x SP:%x\n", program_counter, ss.str().c_str(), accumulator, index_X, index_Y, status_as_int(), stack_pointer);
 }
 
 inline uint8_t CPU::fetch_instruction(){
@@ -137,26 +141,30 @@ void CPU::reset(){
 // Interrupt routines differ for maskable (BRK/IRQ) and non-maskable
 // interrupts. However, the return-from-interrupt sequence 
 // is the same (see: RTI())
-void CPU::raise_interrupt(bool maskable){
+void CPU::raise_interrupt(bool maskable, bool from_instruction = false){
     auto push_program_counter = [this](){
         push_stack(program_counter >> 8);
         push_stack(program_counter);
     };
 
+    if(maskable && CPU::MASKABLE_IRQ && interrupt_disable_f){
+        return;
+    }
+
+    if(from_instruction){
+        b_flag_f = 1;
+    }else{
+        b_flag_f = 0;
+    }
+
     // since I must have been low for the interrupt
     // and P is stored before I is asserted, 
     // I will always be deasserted by RTI
+    push_program_counter();
+    push_stack(status_as_int());
     if(maskable){
-        if(CPU::MASKABLE_IRQ && interrupt_disable_f){
-            return;
-        }
-        push_program_counter();
-        b_flag_f = 1;
-        push_stack(status_as_int());
         program_counter = read_brk_vec();
     }else{
-        push_program_counter();
-        push_stack(status_as_int());
         program_counter = read_nmi_vec();
     }
     frame_cycles++;
@@ -1335,7 +1343,7 @@ void CPU::PHA(){
 }
 
 void CPU::PHP(){
-    push_stack(status_as_int());
+    push_stack(status_as_int() | 0b00010000); // set b_flag as push occurs, but don't modify the actual register
 }
 
 void CPU::PLA(){
@@ -1347,7 +1355,7 @@ void CPU::PLA(){
 
 void CPU::PLP(){
     VNES_LOG::LOG(VNES_LOG::Severity::WARN, "Am I implemented correctly? What does 'pull processor status from stack' mean?");
-    set_status_reg(pop_stack());
+    set_status_reg(pop_stack() & 0b11101111); // ignore B flag
 }
 
 
@@ -1663,7 +1671,7 @@ void CPU::SEI(){
 void CPU::BRK(){
     VNES_LOG::LOG(VNES_LOG::WARN, "Should BRK() handled the byte after the BRK opcode (byte is 'reason for interrupt/brk')? Investigate this!");
     program_counter += 2;
-    raise_interrupt(true); // raise as maskable
+    raise_interrupt(true, true); // raise as maskable, set B flag
 }
 
 void CPU::NOP(){
