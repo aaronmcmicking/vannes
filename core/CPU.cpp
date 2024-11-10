@@ -193,7 +193,7 @@ void CPU::raise_interrupt(bool maskable, bool from_instruction = false){
 }
 
 uint8_t CPU::status_as_int(){ 
-    VNES_LOG::LOG(VNES_LOG::WARN, "status_as_int: Check that I'm implemented right!");
+    //VNES_LOG::LOG(VNES_LOG::WARN, "status_as_int: Check that I'm implemented right!");
     uint8_t status = 0b00100000; // bit 5 is always 1
     if(negative_f)            status |= 0b10000000;
     if(overflow_f)            status |= 0b01000000;

@@ -1,6 +1,7 @@
 #!/bin/sh
 
-RAYLIB="-lraylib -lGL -lglfw -lm -lpthread -ldl -lrt -lX11"
+#RAYLIB="-lraylib -lGL -lglfw -lm -lpthread -ldl -lrt -lX11"
+RAYLIB="-lraylib -lGL -lm -lpthread -ldl -lrt -lX11"
 
 #CFLAGS="-Wall -Wextra -Werror -O3 -ggdb -std=c++20 -Wno-overflow -Wno-format-security"
 if [ "$1" = "fast" ]; then
