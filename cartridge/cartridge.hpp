@@ -13,6 +13,7 @@
  */
 class Cartridge{
     public:
+        Cartridge(); // dummy cart with 16k PRG and 8k CHR available
         Cartridge(std::string filename);
         void load_rom(std::string filename);
         void dump_rom();

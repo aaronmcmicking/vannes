@@ -8,6 +8,9 @@
 #include "mappers/Mapper000.cpp"
 #include <chrono>
 #include <ostream>
+#include <algorithm>
+
+#include <raylib.h>
 
 void parse_args(int argc, char** argv, std::string& rom_filename){
     for(int i = 1; i < argc; i++){
@@ -33,11 +36,27 @@ void parse_args(int argc, char** argv, std::string& rom_filename){
     //std::cout << "set: " << log_level << std::endl;
 }
 
+int col2uint(Color col){
+    return col.a << 24 | col.b << 16 | col.g << 8 | col.r;
+}
+
 int main(int argc, char** argv){
     using namespace VNES_LOG;
 
+    const int NES_WIDTH = 256;
+    const int NES_HEIGHT = 224;
+    const int WIN_DEFAULT_WIDTH = 1024;
+    const int WIN_DEFAULT_HEIGHT = 896;
 
-    std::string rom_filename {"roms/Super Mario Bros. (Japan, USA).nes"};
+    (void)NES_WIDTH;
+    (void)NES_HEIGHT;
+    (void)WIN_DEFAULT_WIDTH;
+    (void)WIN_DEFAULT_HEIGHT;
+
+
+    //std::string rom_filename {"roms/Super Mario Bros. (Japan, USA).nes"};
+    std::string rom_filename {"roms/nestest.nes"};
+    //std::string rom_filename {""};
     parse_args(argc, argv, rom_filename);
     init_log();
 
@@ -53,7 +72,10 @@ int main(int argc, char** argv){
     ram.write(0x0002, 0);
     ram.write(0x0003, 0);
 
-    FILE* file = fopen("./nestest.vannes.log", "w");
+    // TEST
+    //ram.write(0x0180, 0x33);
+
+    //FILE* file = fopen("./nestest.vannes.log", "w");
 
     int i = 0;
     (void)i;
@@ -68,12 +90,56 @@ int main(int argc, char** argv){
     //        //break;
     //    }
     //}
+    
     uint64_t frame_cycles_to_do = 30000;
     int steps_done = 0;
-    while(cpu.frame_cycles < frame_cycles_to_do){
-        cpu.step();
-        steps_done++;
+
+    InitWindow(WIN_DEFAULT_WIDTH, WIN_DEFAULT_HEIGHT, "vannes");
+    SetWindowState(FLAG_WINDOW_RESIZABLE);
+    SetTargetFPS(120);
+    Texture2D text = LoadTexture("default_texture.png");
+    assert(text.width == NES_WIDTH);
+    assert(text.height == NES_HEIGHT);
+    int pixels[NES_WIDTH*NES_HEIGHT] = {};
+    (void)pixels;
+    //std::fill_n(pixels, NES_WIDTH*NES_HEIGHT, col2uint(RED));
+    for(int i = 0; i < NES_WIDTH*NES_HEIGHT; i++){
+        pixels[i] = 0xFFFFFFFF - i;
     }
+    while(!WindowShouldClose()){
+        BeginDrawing();
+        ClearBackground(BLACK);
+
+        float texture_scale = std::min((float)GetScreenWidth() / NES_WIDTH, (float)GetScreenHeight() / NES_HEIGHT);
+        Vector2 texture_pos = {(GetScreenWidth() - NES_WIDTH*texture_scale) / 2, 0};
+        //UpdateTexture(text, pixels);
+        UpdateTexture(text, ppu.buffer);
+
+        DrawTextureEx(text, texture_pos, 0, texture_scale, WHITE);
+
+        char res_text[100] = {};
+        char texture_res_text[100] = {};
+        char ratio_text[100] = {};
+        snprintf(res_text, 99, "resolution: (%d, %d)", GetScreenWidth(), GetScreenHeight());
+        DrawText(res_text, 10, 30, 30, WHITE);
+        snprintf(texture_res_text, 99, "square: (%g, %g)", NES_WIDTH*texture_scale, NES_HEIGHT*texture_scale);
+        DrawText(texture_res_text, 10, 80, 30, WHITE);
+        snprintf(ratio_text, 99, "square ratio w/h: %g", (NES_WIDTH*texture_scale)/(NES_HEIGHT*texture_scale));
+        DrawText(ratio_text, 10, 130, 30, WHITE);
+
+        DrawFPS(10, 10);
+        EndDrawing();
+        while(cpu.frame_cycles < frame_cycles_to_do){
+            //fprintf(file, "%4x  A:%2x X:%2x Y:%2x P:%2x SP:%2x\n", cpu.program_counter, cpu.accumulator, cpu.index_X, cpu.index_Y, cpu.status_as_int(), cpu.stack_pointer);
+            cpu.step();
+            steps_done++;
+        }
+        for(int i = 0; i < 256*224; i++){
+            ppu.buffer[i] = 0xFF6060FF;
+        }
+    }
+    CloseWindow();
+
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << frame_cycles_to_do << " frame cycles and " << steps_done << " steps took " << std::chrono::duration_cast<std::chrono::seconds> (end - begin).count() << "s" << std::endl;
     std::cout << frame_cycles_to_do << " frame cycles and " << steps_done << " steps took " << std::chrono::duration_cast<std::chrono::milliseconds> (end - begin).count() << "ms" << std::endl;
@@ -86,7 +152,7 @@ int main(int argc, char** argv){
     printf("Read from 0x0003: %x\n", second_error_code);
     printf("Note: if 0x0003 was greater than or equal to 0x004E then the test failed on an invalid opcode.\n");
 
-    fclose(file);
+    //fclose(file);
 
     //for(int i = 0; i < 10; i++) { ram.write(i, i); ram.write(i+0x8000, i); }
     //ram.dump();

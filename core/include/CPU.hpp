@@ -73,8 +73,10 @@ class CPU{
         typedef     std::vector<enum ADDRESSING_MODE> AddrModeVec;
         uint16_t    fetch_address(enum ADDRESSING_MODE mode, const AddrModeVec& page_crossing_modes);
         void        add_cycle_if_page_crossed(uint16_t base_addr, uint16_t offset, CPU::ADDRESSING_MODE mode, const AddrModeVec& modes);
+    public:
         uint8_t     read_mem(uint16_t addr);
         void        write_mem(uint16_t addr, uint8_t data);
+    private:
         void        push_stack(uint8_t data);
         uint8_t     pop_stack();
 

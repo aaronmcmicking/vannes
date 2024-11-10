@@ -17,6 +17,9 @@ class PPU{
 
         bool check_nmi();
 
+        //int buffer[256][224]; // x = 256, y = 244, so index as buffer[x][y]
+        int buffer[256*224]; 
+
     private:
         // see https://8bitworkshop.com/blog/platforms/nintendo-nes.md.html for
         // bit-values in specific registers
@@ -43,7 +46,6 @@ class PPU{
         //bool vblank;
         bool frame_done;
         bool odd_frame;
-        int buffer[256][224]; // x = 256, y = 244, so index as buffer[x][y]
 
         //bit nmi_occured;
         //bit nmi_output;

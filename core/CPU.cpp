@@ -16,6 +16,8 @@ CPU::CPU(RAM& _ram, PPU& _ppu): ram {_ram}, ppu {_ppu}{
 void CPU::step(){
     using namespace VNES_LOG;
 
+    //printf("cpu step\n");
+
     //if(ppu.check_nmi()){ // start of vblank
     //    raise_interrupt(false);
     //}
@@ -33,8 +35,15 @@ void CPU::step(){
     std::stringstream ss {};
     ss << (OPCODE)opcode;
     VNES_LOG::LOG(VNES_LOG::DEBUG, "Executing instruction %s", ss.str().c_str());
-    LOG(INFO, "%x  %s  A:%x X:%x Y:%x P:%x SP:%x\n", program_counter, ss.str().c_str(), accumulator, index_X, index_Y, status_as_int(), stack_pointer);
-    printf("%x  %s  A:%x X:%x Y:%x P:%x SP:%x\n", program_counter, ss.str().c_str(), accumulator, index_X, index_Y, status_as_int(), stack_pointer);
+    //LOG(INFO, "%x  %s  A:%x X:%x Y:%x P:%x SP:%x\n", program_counter, ss.str().c_str(), accumulator, index_X, index_Y, status_as_int(), stack_pointer);
+    printf("%x  %s  A:%2x X:%2x Y:%2x P:%2x SP:%2x\n", program_counter, ss.str().c_str(), accumulator, index_X, index_Y, status_as_int(), stack_pointer);
+
+    //uint32_t addr = 0x0180;
+    //while(addr <= 0x2000){
+    //    uint8_t data = ram.read(addr);
+    //    if(true || data == 0x33){ printf("Address 0x%x has value 0x%x\n", addr, data); }
+    //    addr += 0x0800;
+    //}
 }
 
 inline uint8_t CPU::fetch_instruction(){
@@ -42,10 +51,22 @@ inline uint8_t CPU::fetch_instruction(){
 }
 
 inline uint8_t CPU::read_mem(uint16_t addr){
+    if(addr == 0x0180){
+        printf("Read from 0x0180 (PC is %x)\n", program_counter);
+        //do 
+        //{
+        //} while (std::cin.get() != '\n');
+    }
     return ram.read(addr);
 }
 
 inline void CPU::write_mem(uint16_t addr, uint8_t data){
+    if(addr == 0x0180){
+        printf("Write to 0x0180 with data %2x (PC is %x)\n", data, program_counter);
+        do 
+        {
+        } while (std::cin.get() != '\n');
+    }
     ram.write(addr, data);
 }
 
@@ -214,7 +235,10 @@ void CPU::add_cycle_if_page_crossed(uint16_t base_addr,
 uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode, const AddrModeVec& page_crossing_modes = AddrModeVec{}){
     using namespace VNES_LOG;
     uint16_t addr = 0;
-    uint8_t zpg_ptr = 0; // a pointer into the zero page is sometimes needed
+    //uint8_t zpg_ptr = 0; // a pointer into the zero page is sometimes needed
+    uint16_t zpg_ptr = 0; // a pointer into the zero page is sometimes needed
+    uint16_t ptr = 0; // pointer for INDIRECT
+    (void)ptr;
     switch(mode){
         case ACC:
             addr = 0; // The accumulator is not in RAM.
@@ -247,6 +271,10 @@ uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode, const AddrModeVec& page_c
             LOG(ERROR, "Tried to fetch address while in Implied mode. This attempt shouldn't happen!\n");
 			break;
 		case IND:
+            //ptr = read_mem(++program_counter);
+            //ptr |= read_mem(++program_counter) << 8;
+            //addr = read_mem(ptr);
+            //addr |= read_mem(++ptr) << 8;
             zpg_ptr = read_mem(++program_counter);
             addr |= read_mem(zpg_ptr);
             addr |= (read_mem(++zpg_ptr) << 8);
@@ -283,6 +311,7 @@ uint16_t CPU::fetch_address(enum ADDRESSING_MODE mode, const AddrModeVec& page_c
             VNES_ASSERT(0 && "Unreachable");
             break;
     }
+    if(addr % 0x0800 == 0x0180) { printf("Addr 0x%x mirrors or is 0x0180\n", addr); }
     return addr;
 }
 
@@ -1680,6 +1709,7 @@ void CPU::RTI(){
     uint8_t PCL = (pop_stack());
     uint8_t PCH = pop_stack();
     program_counter = ((uint16_t)PCH << 8) | PCL;
+    program_counter--;
 }
 
 

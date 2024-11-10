@@ -64,10 +64,13 @@ void PPU::reset(){
     scanline_cycles = 0;
     scanline = 0;
     dot = 0;
-    for(int x = 0; x < 256; x++){
-        for(int y = 0; y < 224; y++){
-            buffer[x][y] = 0;
-        }
+    //for(int x = 0; x < 256; x++){
+    //    for(int y = 0; y < 224; y++){
+    //        buffer[x][y] = 0;
+    //    }
+    //}
+    for(int i = 0; i < 256*224; i++){
+        buffer[i] = 0;
     }
     //vblank = false;
     frame_done = false;

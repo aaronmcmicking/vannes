@@ -3,6 +3,7 @@ test
 vannes  
 
 # testing
+rom_src
 test*
 ram.dump
 vannes.log

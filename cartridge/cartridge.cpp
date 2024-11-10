@@ -13,6 +13,47 @@ Cartridge::Cartridge(std::string filename): mapper {nullptr} {
     set_mapper(); 
 }
 
+Cartridge::Cartridge(): mapper {nullptr}{ // dummy cart with 16k PRG and 8k CHR available
+    using namespace VNES_LOG;
+    header.nes_title[0]             = 0x4E;       
+    header.nes_title[1]             = 0x45;       
+    header.nes_title[2]             = 0x53;       
+    header.nes_title[3]             = 0x1A;       
+    header.prg_rom_size_x16kb       = 2; 
+    header.chr_rom_size_x8kb        = 1;  
+    header.flags_6                  = 0;            
+    header.flags_7                  = 0;            
+    header.flags_8                  = 0;            
+    header.flags_9                  = 0;            
+    header.padding[0]               = 0;         
+    header.padding[1]               = 0;         
+    header.padding[2]               = 0;         
+    header.padding[3]               = 0;         
+    header.padding[4]               = 0;         
+    header.padding[5]               = 0;         
+
+    trainer.reset();
+
+    // get prg rom
+    LOG(INFO, "Loading empty PRG ROM.", header.prg_rom_size_x16kb);
+    prg_rom.clear();
+    for(int i = 0; i < header.prg_rom_size_x16kb*16384; i++){
+        prg_rom.insert(prg_rom.end(), 0); 
+    }
+    LOG(DEBUG, "header.prg_rom_size_x16kb is %d: loaded %d bytes to prg_rom", header.prg_rom_size_x16kb, prg_rom.size());
+
+    // get chr rom
+    LOG(INFO, "Loading empty CHR ROM");
+    chr_rom.clear();
+    for(int i = 0; i < header.chr_rom_size_x8kb*8192; i++){
+        chr_rom.insert(chr_rom.end(), 0); 
+    }
+    LOG(DEBUG, "header.chr_rom_size_x8kb is %d: loaded %d bytes to chr_rom", header.chr_rom_size_x8kb, chr_rom.size());
+
+    set_mapper();
+}
+
+
 void Cartridge::set_mapper(){
     switch(mapper_number){
         case 0:

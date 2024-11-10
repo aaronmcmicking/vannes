@@ -18,6 +18,7 @@ RAM::RAM(Cartridge& cart): cart {cart} {
 
 void RAM::write(uint16_t addr, uint8_t data){
     using namespace VNES_LOG;
+    if(addr <= 0x2000 && addr % 0x0800 == 0x0180) { printf("RAM.write(): addr 0x%x mirrors or is 0x0180, data is 0x%x\n", addr, data); }
     switch(addr){
         case 0x0000 ... 0x1FFF: // 2kb program RAM, 4 mirrored sections (each 0x0800 addrs)
             mem[(addr % 0x0800)] = data;
@@ -70,6 +71,7 @@ uint8_t RAM::read(uint16_t addr){
             break;
     }
     LOG(DEBUG, "Read value 0x%x from address 0x%x", data, addr);
+    if(addr <= 0x2000 && addr % 0x0800 == 0x0180) { printf("RAM.read(): addr 0x%x mirrors or is 0x0180, data is 0x%x\n", addr, data); }
     return data;
 }
 
