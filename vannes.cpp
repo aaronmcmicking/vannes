@@ -47,11 +47,13 @@ int main(int argc, char** argv){
     const int NES_HEIGHT = 224;
     const int WIN_DEFAULT_WIDTH = 1024;
     const int WIN_DEFAULT_HEIGHT = 896;
+    const int TARGET_FPS = 120;
 
     (void)NES_WIDTH;
     (void)NES_HEIGHT;
     (void)WIN_DEFAULT_WIDTH;
     (void)WIN_DEFAULT_HEIGHT;
+    (void)TARGET_FPS;
 
 
     //std::string rom_filename {"roms/Super Mario Bros. (Japan, USA).nes"};
@@ -120,12 +122,15 @@ int main(int argc, char** argv){
         char res_text[100] = {};
         char texture_res_text[100] = {};
         char ratio_text[100] = {};
+        char target_fps_text[100] = {};
         snprintf(res_text, 99, "resolution: (%d, %d)", GetScreenWidth(), GetScreenHeight());
         DrawText(res_text, 10, 30, 30, WHITE);
         snprintf(texture_res_text, 99, "square: (%g, %g)", NES_WIDTH*texture_scale, NES_HEIGHT*texture_scale);
         DrawText(texture_res_text, 10, 80, 30, WHITE);
         snprintf(ratio_text, 99, "square ratio w/h: %g", (NES_WIDTH*texture_scale)/(NES_HEIGHT*texture_scale));
         DrawText(ratio_text, 10, 130, 30, WHITE);
+        snprintf(target_fps_text, 99, "target_fps: %d", TARGET_FPS);
+        DrawText(target_fps_text, 10, 180, 30, WHITE);
 
         DrawFPS(10, 10);
         EndDrawing();
