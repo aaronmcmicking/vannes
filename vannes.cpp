@@ -1,4 +1,5 @@
 #include <iostream>
+
 #include "core/RAM.cpp"
 #include "core/CPU.cpp"
 #include "common/log.hpp"
@@ -6,6 +7,8 @@
 #include "common/nes_assert.hpp"
 #include "cartridge/cartridge.cpp"
 #include "mappers/Mapper000.cpp"
+#include "controllers/Controller.cpp"
+
 #include <chrono>
 #include <ostream>
 #include <algorithm>
@@ -47,7 +50,7 @@ int main(int argc, char** argv){
     const int NES_HEIGHT = 224;
     const int WIN_DEFAULT_WIDTH = 1024;
     const int WIN_DEFAULT_HEIGHT = 896;
-    const int TARGET_FPS = 120;
+    const int TARGET_FPS = 60;
 
     (void)NES_WIDTH;
     (void)NES_HEIGHT;
@@ -62,8 +65,9 @@ int main(int argc, char** argv){
     parse_args(argc, argv, rom_filename);
     init_log();
 
+    Controller controller = Controller(KEYBOARD);
     Cartridge cart = Cartridge(rom_filename);
-    RAM ram = RAM(cart);
+    RAM ram = RAM(cart, controller);
     ram.write(RAM::RESET_VEC, 0x00);
     ram.write(RAM::RESET_VEC + 1, 0xc0);
     //ram.write(PPU::PPU_STATUS, 0xFF); // programs wait for PPU at reset
@@ -108,7 +112,58 @@ int main(int argc, char** argv){
     for(int i = 0; i < NES_WIDTH*NES_HEIGHT; i++){
         pixels[i] = 0xFFFFFFFF - i;
     }
+
+    unsigned int background_colour = col2uint((Color){30, 30, 30, 255});
     while(!WindowShouldClose()){
+
+        // Update section
+        controller.get_input();
+        while(cpu.frame_cycles < frame_cycles_to_do){
+            //fprintf(file, "%4x  A:%2x X:%2x Y:%2x P:%2x SP:%2x\n", cpu.program_counter, cpu.accumulator, cpu.index_X, cpu.index_Y, cpu.status_as_int(), cpu.stack_pointer);
+            cpu.step();
+            steps_done++;
+        }
+
+        char pressed_keys_text[10] = "XXXXXXXX";
+        pressed_keys_text[9] = '\0';
+        if(controller.START_PRESSED){
+            pressed_keys_text[6] = 'S';
+            background_colour = col2uint(MAGENTA);
+        }
+        if(controller.SELECT_PRESSED){
+            pressed_keys_text[7] = 's';
+            background_colour = col2uint(GREEN);
+        }
+        if(controller.A_PRESSED){
+            pressed_keys_text[1] = 'A';
+            background_colour = col2uint(VIOLET);
+        }
+        if(controller.B_PRESSED){
+            pressed_keys_text[0] = 'B';
+            background_colour = col2uint(ORANGE);
+        }
+        if(controller.UP_PRESSED){
+            pressed_keys_text[2] = 'U';
+            background_colour = col2uint(RED);
+        }
+        if(controller.DOWN_PRESSED){
+            pressed_keys_text[3] = 'D';
+            background_colour = col2uint(BLUE);
+        }
+        if(controller.LEFT_PRESSED){
+            pressed_keys_text[4] = 'L';
+            background_colour = col2uint(GREEN);
+        }
+        if(controller.RIGHT_PRESSED){
+            pressed_keys_text[5] = 'R';
+            background_colour = col2uint(PURPLE);
+        }
+
+        for(int i = 0; i < 256*224; i++){
+            ppu.buffer[i] = background_colour;
+        }
+
+        // Render section
         BeginDrawing();
         ClearBackground(BLACK);
 
@@ -132,16 +187,11 @@ int main(int argc, char** argv){
         snprintf(target_fps_text, 99, "target_fps: %d", TARGET_FPS);
         DrawText(target_fps_text, 10, 180, 30, WHITE);
 
+        DrawText(pressed_keys_text, 10, 230, 30, WHITE);
+
         DrawFPS(10, 10);
         EndDrawing();
-        while(cpu.frame_cycles < frame_cycles_to_do){
-            //fprintf(file, "%4x  A:%2x X:%2x Y:%2x P:%2x SP:%2x\n", cpu.program_counter, cpu.accumulator, cpu.index_X, cpu.index_Y, cpu.status_as_int(), cpu.stack_pointer);
-            cpu.step();
-            steps_done++;
-        }
-        for(int i = 0; i < 256*224; i++){
-            ppu.buffer[i] = 0xFF6060FF;
-        }
+
     }
     CloseWindow();
 

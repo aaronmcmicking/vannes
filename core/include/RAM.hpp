@@ -4,10 +4,11 @@
 
 #include <stdint.h>
 #include "../../cartridge/cartridge.hpp"
+#include "../../controllers/Controller.hpp"
 
 class RAM{
     public:
-        RAM(Cartridge& cart);
+        RAM(Cartridge& cart, Controller& controller);
 
         uint8_t read(uint16_t addr);
         void    write(uint16_t addr, uint8_t data);
@@ -25,6 +26,7 @@ class RAM{
 
     private:
         Cartridge& cart;
+        Controller& controller;
 
         /*
          * 0x0000 - 0x00FF: RAM (zero-page)
