@@ -7,7 +7,7 @@
 #include <fstream>
 #include <stdio.h> // FILE* cause i dont like fstream 
 
-RAM::RAM(Cartridge& cart): cart {cart} {
+RAM::RAM(Cartridge& cart, Controller& controller): cart {cart}, controller {controller} {
     VNES_LOG::LOG(VNES_LOG::INFO, "Constructing RAM...");
     // init RAM to 0, although this shouldn't be relied upon as actual reset
     // values were undefined (and unpredictable) in real hardware
@@ -26,8 +26,11 @@ void RAM::write(uint16_t addr, uint8_t data){
         case 0x2000 ... 0x3FFF: // PPU registers
             mem[(addr % 0x8) + 0x2000] = data; // mirrors every 8 bytes
             break;
-        case 0x4000 ... 0x4017: // APU and I/O registers
+        case 0x4000 ... 0x4015: // APU
             mem[addr] = data;
+            break;
+        case 0x4016 ... 0x4017: //  I/O registers (controllers)
+            controller.write(addr, data); 
             break;
         case 0x4018 ... 0x401F: // Normally APU and I/O, for CPU Test
             mem[addr] = data;
@@ -55,8 +58,11 @@ uint8_t RAM::read(uint16_t addr){
         case 0x2000 ... 0x3FFF: // PPU registers
             data = mem[(addr % 0x8) + 0x2000]; // mirrors every eight bytes
             break;
-        case 0x4000 ... 0x4017:
+        case 0x4000 ... 0x4015:
             data = mem[addr];
+            break;
+        case 0x4016 ... 0x4017:
+            data = controller.read(addr);
             break;
         case 0x4018 ... 0x401F:
             LOG(WARN, "Read to normally unused (CPU Test mode only) address 0x%x returns value 0x%x", addr, mem[addr]);
