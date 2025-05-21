@@ -6,8 +6,6 @@
 class PPU{
     public:
         PPU(RAM& _ram);
-
-    public:
         void power_up();
         void reset();
         void do_cycles(int cycles_to_do);
@@ -35,11 +33,17 @@ class PPU{
             PPU_OAM_DMA     = 0x4014   // W 	Sprite Page DMA Transfer 
         };
 
+        // internal registers, see https://www.nesdev.org/wiki/PPU_scrolling
+        uint16_t reg_v; // 15 bits, current VRAM address. Note PPU address is 14 bits wide, so top bit unused through 0x2007
+        uint16_t reg_t; // 15 bits, temp VRAM address (also thought as address of top left onscreen tile)
+        uint8_t reg_x; // 3 bits, fine X scroll
+        uint8_t reg_w; // 1 bit, first or second write toggle
+
         RAM& ram;
         
         uint64_t cycles_since_reset;
-        int frame_cycles;
-        int scanline_cycles;
+        int frame_cycle;
+        int scanline_cycle;
         int scanline;
         int dot;
 
@@ -52,6 +56,8 @@ class PPU{
 
         void    internal_write(uint16_t addr, uint8_t data);
         uint8_t internal_read(uint16_t addr);
+
+        void cycle();
 
 
 };
