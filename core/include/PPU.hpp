@@ -2,12 +2,13 @@
 
 //#include "RAM.hpp"
 #include "../../cartridge/cartridge.hpp"
+#include "DMABus.hpp"
 #include "../../common/typedefs.hpp"
 
 class PPU{
     public:
         //PPU(RAM& _ram, Cartridge& _cart);
-        PPU(Cartridge& _cart);
+        PPU(Cartridge& _cart, DMABus& _dmabus);
         void power_up();
         void reset();
         void do_cycles(int cycles_to_do);
@@ -23,7 +24,6 @@ class PPU{
         //int buffer[256][224]; // x = 256, y = 244, so index as buffer[x][y]
         int buffer[256*224]; 
 
-    private:
         // see https://8bitworkshop.com/blog/platforms/nintendo-nes.md.html for
         // bit-values in specific registers
         enum PPU_regs{
@@ -38,6 +38,7 @@ class PPU{
             PPU_OAM_DMA     = 0x4014   // W 	Sprite Page DMA Transfer 
         };
 
+    private:
         /*
          * TODO remove me
           good memory map resource https://forums.nesdev.org/viewtopic.php?t=10297
@@ -105,6 +106,7 @@ class PPU{
         uint8_t reg_w; // 1 bit, first or second write toggle
 
         //RAM& ram;
+        DMABus& dmabus;
         Cartridge& cart;
         
         uint64_t cycles_since_reset;
@@ -120,8 +122,8 @@ class PPU{
         //bit nmi_occured;
         //bit nmi_output;
 
-        void    internal_write(uint16_t addr, uint8_t data);
-        uint8_t internal_read(uint16_t addr);
+        //void    internal_write(uint16_t addr, uint8_t data);
+        //uint8_t internal_read(uint16_t addr);
 
         void cycle();
 

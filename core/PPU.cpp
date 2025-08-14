@@ -5,7 +5,7 @@
 #include <algorithm>
 
 //PPU::PPU(RAM& _ram, Cartridge& _cart): ram {_ram}, cart {_cart} { 
-PPU::PPU(Cartridge& _cart): cart {_cart} { 
+PPU::PPU(Cartridge& _cart, DMABus& _dmabus): cart {_cart}, dmabus {_dmabus} { 
     VNES_LOG::LOG(VNES_LOG::INFO, "Constructing PPU");
     power_up();
     VNES_LOG::LOG(VNES_LOG::INFO, "Done constructing PPU");
@@ -148,6 +148,13 @@ void PPU::register_write(uint16_t addr, uint8_t data){
 			/* handler */
 
             // DMA is 256 pairs of READ FROM RAM (starting from address 0x[data]00) and writing to OAMDATA (will use current OAMADDR, programmer's responsibility to set proper starting address)
+            for(int i = 0x0; i <= 0xFF; i++){
+                // DMABus reads, OMADATA writes
+                uint8_t current_addr = (data << 8) | i;
+                register_write(PPU_OAM_DATA, dmabus.read(current_addr));
+            }
+
+            VNES_LOG::LOG(VNES_LOG::WARN, "PPU OAM DMA should add 514 cycles to the CPU");
             
 			break;
         default:
@@ -210,15 +217,19 @@ uint8_t PPU::internal_read(uint16_t addr){
 */
 
 bool PPU::check_nmi(){
-    return (internal_read(PPU_CTRL) & 0x80) && (internal_read(PPU_STATUS) & 0x80);
+    //return (internal_read(PPU_CTRL) & 0x80) && (internal_read(PPU_STATUS) & 0x80);
+    return (ppu_ctrl & 0x80) && (ppu_status & 0x80);
 }
 
 void PPU::power_up(){
     VNES_LOG::LOG(VNES_LOG::INFO, "Powering up PPU");
     reset();
-    write(PPU_OAM_ADDR, 0x00);
-    write(PPU_ADDR, 0x00);
-    write(PPU_DATA, 0x00);
+    ppu_oam_addr = 0x00;
+    ppu_addr = 0x00;
+    ppu_data = 0x00;
+
+    std::fill(std::begin(vram), std::end(vram), 0);
+
     VNES_LOG::LOG(VNES_LOG::INFO, "Done powering up PPU");
 }
 
@@ -240,11 +251,13 @@ void PPU::reset(){
     //vblank = false;
     frame_done = false;
     odd_frame = false;
-    write(PPU_CTRL, 0x00);    
-    write(PPU_MASK, 0x00);    
-    write(PPU_STATUS, 0x00);    
-    write(PPU_SCROLL, 0x00);
-    write(PPU_DATA, 0x00);
+
+	ppu_ctrl = 0x00;
+	ppu_mask = 0x00;
+	ppu_status = 0x00;
+	ppu_scroll = 0x00;
+	ppu_data = 0x00;
+
     VNES_LOG::LOG(VNES_LOG::INFO, "PPU reset done");
 }
 

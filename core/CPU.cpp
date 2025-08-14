@@ -57,7 +57,16 @@ inline uint8_t CPU::read_mem(uint16_t addr){
         //{
         //} while (std::cin.get() != '\n');
     }
-    return ram.read(addr);
+
+    switch(addr){
+        case 0x2000 ... 0x3FFF: // PPU registers
+            return ppu.register_read(addr);
+            break;
+        default:
+            return ram.read(addr);
+            break;
+    }
+
 }
 
 inline void CPU::write_mem(uint16_t addr, uint8_t data){
@@ -67,7 +76,15 @@ inline void CPU::write_mem(uint16_t addr, uint8_t data){
         {
         } while (std::cin.get() != '\n');
     }
-    ram.write(addr, data);
+
+    switch(addr){
+        case 0x2000 ... 0x3FFF: // PPU registers
+            ppu.register_write(addr, data);
+            break;
+        default:
+            ram.write(addr, data);
+            break;
+    }
 }
 
 inline void CPU::push_stack(uint8_t data){

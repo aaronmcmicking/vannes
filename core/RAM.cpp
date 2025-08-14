@@ -7,13 +7,15 @@
 #include <fstream>
 #include <stdio.h> // FILE* cause i dont like fstream 
 
-RAM::RAM(Cartridge& _cart, Controller& _controller, PPU& _ppu): cart {_cart}, controller {_controller}, ppu {_ppu} {
+//RAM::RAM(Cartridge& _cart, Controller& _controller, PPU& _ppu): cart {_cart}, controller {_controller}, ppu {_ppu} {
+RAM::RAM(Cartridge& _cart, Controller& _controller): cart {_cart}, controller {_controller} {
     VNES_LOG::LOG(VNES_LOG::INFO, "Constructing RAM...");
     // init RAM to 0, although this shouldn't be relied upon as actual reset
     // values were undefined (and unpredictable) in real hardware
-    for(int i = 0; i < INTERNAL_MEM_ITEMS; i++){
-        mem[i] = 0;
-    }
+    //for(int i = 0; i < INTERNAL_MEM_ITEMS; i++){
+    //    mem[i] = 0;
+    //}
+    std::fill(std::begin(mem), std::end(mem), 0);
 }
 
 void RAM::write(uint16_t addr, uint8_t data){
@@ -26,7 +28,8 @@ void RAM::write(uint16_t addr, uint8_t data){
         case 0x2000 ... 0x3FFF: // PPU registers
             // check for locked registers after reset
             //mem[(addr % 0x8) + 0x2000] = data; // mirrors every 8 bytes
-            ppu.register_write(addr, data);
+            //ppu.register_write(addr, data);
+            LOG(ERROR, "RAM shouldn't be trying to write to PPU register %u with data %u, CPU should have handled this!", addr, data);
             break;
         case 0x4000 ... 0x4015: // APU
             mem[addr] = data;
@@ -58,7 +61,8 @@ uint8_t RAM::read(uint16_t addr){
             data = mem[(addr % 0x0800)];
             break;
         case 0x2000 ... 0x3FFF: // PPU registers
-            ppu.register_read(addr);
+            //ppu.register_read(addr);
+            LOG(ERROR, "RAM shouldn't be trying to read PPU register %u, CPU should have handled this!", addr);
             //data = mem[(addr % 0x8) + 0x2000]; // mirrors every eight bytes
             break;
         case 0x4000 ... 0x4015:
@@ -91,7 +95,7 @@ void RAM::dump(){
     //file.open("ram.dump", std::ios::out);
 
     VNES_LOG::Severity old_log_level = VNES_LOG::log_level;
-    VNES_LOG::log_level = VNES_LOG::ERROR; // disable DEBUG/INFO/WARN 
+    VNES_LOG::log_level = VNES_LOG::FATAL; // disable DEBUG/INFO/WARN 
     for(int i = 0x0000; i <= 0xFFFF; i++){
         if(i && !(i % 2)){ fprintf(file, " "); }
         if(!(i % 32)){ 

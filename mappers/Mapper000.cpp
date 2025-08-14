@@ -24,6 +24,7 @@ class Mapper000 : public Mapper{
 
             switch(addr){
                 case 0x4020 ... 0x7FFF:
+                    LOG(FATAL, "CHR ROM is not accessible by the CPU and should only be accessed through the PPU (pattern table 0x0000 - 0x1FFF)");
                     return chr_rom[addr % 0x4020];
                     break;
                 case 0x8000 ... 0xFFFF:

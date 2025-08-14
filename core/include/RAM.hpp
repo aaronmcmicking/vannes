@@ -5,11 +5,12 @@
 #include <stdint.h>
 #include "../../cartridge/cartridge.hpp"
 #include "../../controllers/Controller.hpp"
-#include "../../core/include/PPU.hpp"
+//#include "../../core/include/PPU.hpp"
 
 class RAM{
     public:
-        RAM(Cartridge& _cart, Controller& _controller, PPU& _ppu);
+        //RAM(Cartridge& _cart, Controller& _controller, PPU& _ppu);
+        RAM(Cartridge& _cart, Controller& _controller);
 
         uint8_t read(uint16_t addr);
         void    write(uint16_t addr, uint8_t data);
@@ -28,7 +29,7 @@ class RAM{
     private:
         Cartridge& cart;
         Controller& controller;
-        PPU& ppu;
+        //PPU& ppu;
 
         /*
          * 0x0000 - 0x00FF: RAM (zero-page)
