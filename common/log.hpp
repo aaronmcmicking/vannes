@@ -19,7 +19,7 @@ enum Severity{
 };
 
 // the min level to output log
-Severity log_level = (Severity)2;
+Severity log_level = DEBUG;
 bool file_out = false;
 const std::string log_filename {"vannes.log"};
 

@@ -71,7 +71,7 @@ int main(int argc, char** argv){
     ram.write(RAM::RESET_VEC, 0x00);
     ram.write(RAM::RESET_VEC + 1, 0xc0);
     //ram.write(PPU::PPU_STATUS, 0xFF); // programs wait for PPU at reset
-    PPU ppu = PPU(ram);
+    PPU ppu = PPU(ram, cart);
     CPU cpu = CPU(ram, ppu);
 
     // for nestest.nes
@@ -100,6 +100,7 @@ int main(int argc, char** argv){
     uint64_t frame_cycles_to_do = 30000;
     int steps_done = 0;
 
+    SetTraceLogLevel(LOG_ERROR);
     InitWindow(WIN_DEFAULT_WIDTH, WIN_DEFAULT_HEIGHT, "vannes");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetTargetFPS(120);
@@ -122,6 +123,8 @@ int main(int argc, char** argv){
             //fprintf(file, "%4x  A:%2x X:%2x Y:%2x P:%2x SP:%2x\n", cpu.program_counter, cpu.accumulator, cpu.index_X, cpu.index_Y, cpu.status_as_int(), cpu.stack_pointer);
             cpu.step();
             steps_done++;
+
+            std::cin.get();
         }
 
         char pressed_keys_text[10] = "XXXXXXXX";
@@ -196,9 +199,12 @@ int main(int argc, char** argv){
     CloseWindow();
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << frame_cycles_to_do << " frame cycles and " << steps_done << " steps took " << std::chrono::duration_cast<std::chrono::seconds> (end - begin).count() << "s" << std::endl;
-    std::cout << frame_cycles_to_do << " frame cycles and " << steps_done << " steps took " << std::chrono::duration_cast<std::chrono::milliseconds> (end - begin).count() << "ms" << std::endl;
-    std::cout << frame_cycles_to_do << " frame cycles and " << steps_done << " steps took " << std::chrono::duration_cast<std::chrono::microseconds> (end - begin).count() << "µs" << std::endl;
+    auto secs = std::chrono::duration_cast<std::chrono::seconds> (end - begin).count();
+    auto milli = std::chrono::duration_cast<std::chrono::milliseconds> (end - begin).count();
+    auto micro = std::chrono::duration_cast<std::chrono::microseconds> (end - begin).count();
+    std::cout << frame_cycles_to_do << " frame cycles and " << steps_done << " steps took " << secs << "s = " << milli << "ms = " << micro << "us" << std::endl;
+    //std::cout << frame_cycles_to_do << " frame cycles and " << steps_done << " steps took " << std::chrono::duration_cast<std::chrono::milliseconds> (end - begin).count() << "ms" << std::endl;
+    //std::cout << frame_cycles_to_do << " frame cycles and " << steps_done << " steps took " << std::chrono::duration_cast<std::chrono::microseconds> (end - begin).count() << "µs" << std::endl;
     printf("(cpu did %ld cycles since reset)\n", cpu.cycles_since_reset);
 
     uint8_t first_error_code = ram.read(0x0002);

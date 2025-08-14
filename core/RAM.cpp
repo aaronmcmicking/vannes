@@ -7,7 +7,7 @@
 #include <fstream>
 #include <stdio.h> // FILE* cause i dont like fstream 
 
-RAM::RAM(Cartridge& cart, Controller& controller): cart {cart}, controller {controller} {
+RAM::RAM(Cartridge& _cart, Controller& _controller, PPU& _ppu): cart {_cart}, controller {_controller}, ppu {_ppu} {
     VNES_LOG::LOG(VNES_LOG::INFO, "Constructing RAM...");
     // init RAM to 0, although this shouldn't be relied upon as actual reset
     // values were undefined (and unpredictable) in real hardware
@@ -24,7 +24,9 @@ void RAM::write(uint16_t addr, uint8_t data){
             mem[(addr % 0x0800)] = data;
             break;
         case 0x2000 ... 0x3FFF: // PPU registers
-            mem[(addr % 0x8) + 0x2000] = data; // mirrors every 8 bytes
+            // check for locked registers after reset
+            //mem[(addr % 0x8) + 0x2000] = data; // mirrors every 8 bytes
+            ppu.register_write(addr, data);
             break;
         case 0x4000 ... 0x4015: // APU
             mem[addr] = data;
@@ -56,7 +58,8 @@ uint8_t RAM::read(uint16_t addr){
             data = mem[(addr % 0x0800)];
             break;
         case 0x2000 ... 0x3FFF: // PPU registers
-            data = mem[(addr % 0x8) + 0x2000]; // mirrors every eight bytes
+            ppu.register_read(addr);
+            //data = mem[(addr % 0x8) + 0x2000]; // mirrors every eight bytes
             break;
         case 0x4000 ... 0x4015:
             data = mem[addr];

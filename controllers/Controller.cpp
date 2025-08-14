@@ -1,4 +1,4 @@
-#include "Controller.h"
+#include "Controller.hpp"
 
 Controller::Controller(){
     using namespace VNES_LOG;
