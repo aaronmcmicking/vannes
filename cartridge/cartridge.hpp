@@ -15,6 +15,7 @@ class Cartridge{
     public:
         Cartridge(); // dummy cart with 16k PRG and 8k CHR available
         Cartridge(std::string filename);
+        void load_rom_ines2(std::string filename);
         void load_rom(std::string filename);
         void dump_rom();
 
@@ -29,7 +30,7 @@ class Cartridge{
 
         // see https://www.nesdev.org/wiki/INES for explanations of flags
         // and other header fields
-        struct Header{
+        struct iNESHeader{
             uint8_t nes_title[4];       // -usually 'NES' + DOS null terminator
             uint8_t prg_rom_size_x16kb; // -size of PRG ROM in 16kb chunks
             uint8_t chr_rom_size_x8kb;  // -size of CHR ROM in 8kb chunks
@@ -47,6 +48,23 @@ class Cartridge{
                                         //  to the mapper number. A general rule of thumb: if the last 4 bytes are not all zero, and 
                                         //  the header is not marked for NES 2.0 format, an emulator should either mask off the upper 
                                         //  4 bits of the mapper number or simply refuse to load the ROM."
+        };
+
+        struct iNES2Header{
+            uint8_t nes_title[4];       // -usually 'NES' + DOS null terminator
+            uint8_t prg_rom_size_lsb;   // -lsb of PRG ROM size
+            uint8_t chr_rom_size_lsb;   // -lsb of CHR ROM size
+            uint8_t flags_6;            // -Mapper low nybble, alt nametable, trainer present, nametable arrangement
+            uint8_t flags_7;            // -Mapper high nybble, if bits[3:2] = 2 then remaining are NES2.0 spec, PlayChoice 10 = unused, VS mode = coinslot
+            uint8_t mapper_msb_submapper;            // -PRG RAM size, in 8kb chunks. Very rarely used due to being new spec addition
+            uint8_t prg_chr_rom_msb;            // -bits[7:1] = unused, bits[0]: TV system (0: NTSC; 1: PAL), rarely honoured
+            uint8_t prg_ram_eeprom_sift;         // -6 bytes of padding succeed the header. 
+            uint8_t chr_ram_size;
+            uint8_t cpu_ppu_timing;
+            uint8_t hardware_type;
+            uint8_t misc_roms_present;
+            uint8_t default_expansion_device;
+
         };
 
         Header header;

@@ -21,6 +21,7 @@ enum Severity{
 // the min level to output log
 Severity log_level = WARN;
 bool file_out = false;
+bool fatal_error_kills_program = false;
 const std::string log_filename {"vannes.log"};
 
 void init_log(){
@@ -79,6 +80,11 @@ void log(const char* __file__, int __line__, char endchar, Severity severity, co
         va_end(argptr);
         fprintf(logfile, "%c", endchar);
         fclose(logfile);
+    }
+
+    // fatal kills
+    if(severity == FATAL && fatal_error_kills_program){
+        throw std::runtime_error("FATAL error encountered");
     }
 }
 
