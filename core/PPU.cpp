@@ -18,11 +18,11 @@ uint8_t PPU::register_read(uint16_t addr){
     uint8_t data = 0;
     switch(mod_addr){
         case PPU_CTRL:	// W 	PPU Control 1
-            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to read from write-only register at address %u -> %u", addr, mod_addr);
+            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to read from write-only register at address 0x%x -> 0x%x", addr, mod_addr);
             data = open_bus;
 			break;
         case PPU_MASK:	// W 	PPU Control 2
-            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to read from write-only register at address %u -> %u", addr, mod_addr);
+            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to read from write-only register at address 0x%x -> 0x%x", addr, mod_addr);
             data = open_bus;
 			break;
         case PPU_STATUS:	// R 	PPU Status
@@ -32,18 +32,18 @@ uint8_t PPU::register_read(uint16_t addr){
             ppu_status &= 0x7F; // reading PPU_STATUS returns and then resets the value of the vblank flag
 			break;
         case PPU_OAM_ADDR:	// W 	OAM Address
-            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to read from write-only register at address %u -> %u", addr, mod_addr);
+            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to read from write-only register at address 0x%x -> 0x%x", addr, mod_addr);
             data = open_bus;
 			break;
         case PPU_OAM_DATA:	// R/W 	OAM Data
             data = OAM_PRIMARY[ppu_oam_addr];
 			break;
         case PPU_SCROLL:	// W 2x 	Background Scroll Position \newline (write X then Y)
-            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to read from write-only register at address %u -> %u", addr, mod_addr);
+            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to read from write-only register at address 0x%x -> 0x%x", addr, mod_addr);
             data = open_bus;
 			break;
         case PPU_ADDR:	// W 2x 	PPU Address \newline (write upper then lower)
-            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to read from write-only register at address %u -> %u", addr, mod_addr);
+            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to read from write-only register at address 0x%x -> 0x%x", addr, mod_addr);
             data = open_bus;
 			break;
         case PPU_DATA:	// R/W 	PPU Data
@@ -57,11 +57,11 @@ uint8_t PPU::register_read(uint16_t addr){
             }
 			break;
         case PPU_OAM_DMA:	// W 	Sprite Page DMA Transfer 
-            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to read from write-only register at address %u -> %u", addr, mod_addr);
+            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to read from write-only register at address 0x%x -> 0x%x", addr, mod_addr);
             data = open_bus;
 			break;
         default:
-            VNES_LOG::LOG(VNES_LOG::ERROR, "Tried to read to bad PPU register address %u -> %u", addr, mod_addr);
+            VNES_LOG::LOG(VNES_LOG::ERROR, "Tried to read to bad PPU register address 0x%x -> 0x%x", addr, mod_addr);
             break;
     }
 
@@ -95,7 +95,7 @@ void PPU::register_write(uint16_t addr, uint8_t data){
             ppu_mask = data;
 			break;
         case PPU_STATUS:	// R 	PPU Status
-            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to write to read-only register at address %u -> %u", addr, mod_addr);
+            VNES_LOG::LOG(VNES_LOG::WARN, "Attempted to write to read-only register at address 0x%x -> 0x%x", addr, mod_addr);
 			break;
         case PPU_OAM_ADDR:	// W 	OAM Address
             ppu_oam_addr = data;
@@ -158,7 +158,7 @@ void PPU::register_write(uint16_t addr, uint8_t data){
             
 			break;
         default:
-            VNES_LOG::LOG(VNES_LOG::ERROR, "Tried to read to bad PPU register address %u", mod_addr);
+            VNES_LOG::LOG(VNES_LOG::ERROR, "Tried to read to bad PPU register address 0x%x", mod_addr);
             break;
     }
 }
@@ -174,6 +174,38 @@ void PPU::register_write(uint16_t addr, uint8_t data){
  *          https://www.nesdev.org/wiki/CHR_ROM_vs._CHR_RAM
  *          https://www.nesdev.org/wiki/PPU_pattern_tables
  */
+
+// private read function, only used by PPU itself
+uint8_t PPU::vram_read(uint16_t addr){
+    uint16_t addr_14b = addr & 0x3FFF; // VRAM address line is only 14 bits wide
+    uint8_t data = 0;
+    switch(addr){
+        case 0x0000 ... 0x1FFF:
+            // 
+            data = cart.read_pallete(addr_14b);
+            break;
+
+        default:
+            data = vram[addr_14b];
+            break;
+    }
+
+    return data;
+}
+
+// private write function, only used by PPU itself
+void PPU::vram_write(uint16_t addr, uint8_t data){
+    uint16_t addr_14b = addr & 0x3FFF; // VRAM address line is only 14 bits wide
+    switch(addr){
+        case 0x0000 ... 0x1FFF:
+            // 
+            VNES_LOG::LOG(VNES_LOG::ERROR, "Attempted to write to CHR ROM address 0x%x (16 bit address was 0x%x)", addr_14b, addr);
+            break;
+
+        default:
+            vram[addr_14b] = data;
+            break;
+}
 /*
 void PPU::write(uint16_t addr, uint8_t data){
     const std::vector<PPU_regs> write_locked_after_reset {PPU_CTRL, PPU_MASK, PPU_SCROLL, PPU_ADDR};

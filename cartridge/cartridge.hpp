@@ -21,6 +21,8 @@ class Cartridge{
         uint8_t read(uint16_t addr); // reads from mapper
         void    write(uint16_t addr, uint8_t data); // write to cart RAM, sometimes battery backed 
 
+        uint8_t read_pallete(uint16_t addr);
+
     private:
         std::unique_ptr<Mapper> mapper; 
         void set_mapper();

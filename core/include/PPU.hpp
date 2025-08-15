@@ -78,7 +78,12 @@ class PPU{
          */
         uint8_t vram[0x4000]; // 0x4000 = 16384 bytes = 14-bit address line
                                  // see https://www.nesdev.org/wiki/PPU_memory_map
-                                 //
+                              // 0x0000 - 0x1FFF of this array are unused since
+                              // accesses there are rerouted to pallete data on the cart,
+                              // but keeping the array this size makes addressing easier
+
+        uint8_t vram_read(uint16_t addr);
+        void vram_write(uint16_t addr, uint8_t data);
 
         // registers
         uint8_t ppu_ctrl;
