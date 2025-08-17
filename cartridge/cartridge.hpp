@@ -6,6 +6,7 @@
 #include <array>
 #include "../mappers/Mapper.hpp"
 #include <memory>
+#include "header.cpp"
 
 /*
  * Follows iNES and NES2.0 standards, but does not implement all features. 
@@ -13,9 +14,9 @@
  */
 class Cartridge{
     public:
-        Cartridge(); // dummy cart with 16k PRG and 8k CHR available
+        //Cartridge(); // dummy cart with 16k PRG and 8k CHR available
         Cartridge(std::string filename);
-        void load_rom_ines2(std::string filename);
+        //void load_rom_old(std::string filename);
         void load_rom(std::string filename);
         void dump_rom();
 
@@ -23,6 +24,13 @@ class Cartridge{
         void    write(uint16_t addr, uint8_t data); // write to cart RAM, sometimes battery backed 
 
         uint8_t read_pallete(uint16_t addr);
+
+        typedef enum NametableLayout{
+            VERTICAL = 0,
+            HORIZONTAL = 1
+        }NametableLayout;
+
+        NametableLayout nametable_layout {};
 
     private:
         std::unique_ptr<Mapper> mapper; 
@@ -62,14 +70,24 @@ class Cartridge{
             uint8_t chr_ram_size;
             uint8_t cpu_ppu_timing;
             uint8_t hardware_type;
-            uint8_t misc_roms_present;
+            uint8_t misc_roms_present;  
             uint8_t default_expansion_device;
 
         };
 
         Header header;
-        int mapper_number;
+        uint16_t mapper_number = 0;
+        uint8_t submapper_number = 0;
         std::optional<std::array<uint8_t, 512>> trainer;
+
+        uint32_t prg_rom_size_bytes = 0;
+        uint32_t prg_ram_size_bytes = 0;
+        uint32_t eeprom_size_bytes = 0;
+
+        uint32_t chr_rom_size_bytes = 0;
+        uint32_t chr_ram_size_bytes = 0;
+        uint32_t chr_nvram_size_bytes = 0;
+
         std::vector<uint8_t> prg_rom; // loaded in entirety, mapper is responsible for accessing properly
         std::vector<uint8_t> chr_rom; // loaded in entirety, mapper is responsible for accessing properly
         // Mapper should handle banked ROM data
