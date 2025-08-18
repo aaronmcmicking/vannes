@@ -113,20 +113,8 @@ void Cartridge::load_rom(std::string filename){
         // trainer
         bool trainer_present = header.data.flags_6 & 0x04;
         if(trainer_present){
-            // trainer is a 512 byte region immediately after the header
-            // and before the PRG/CHR data that should be loaded into address
-            // 0x7000 in CPU memory. This is due to some workarounds for different
-            // cartrdige hardware.
-
             trainer.reset();
             trainer.emplace();
-
-            std::array<uint8_t, 512> trainer_array = trainer.value();
-            for(int i = 0; i < 512; i++){
-                trainer.value()[i] = file.get();
-            }
-        }else{
-            trainer.reset();
         }
 
         // PRG-ROM
@@ -224,12 +212,37 @@ void Cartridge::load_rom(std::string filename){
     LOG(DEBUG, "Finished parsing header");
 
     // Read trainer, PRG, CHR data in from file
-    LOG(FATAL, "Unimplemented data fetch");
+    
     file.seekg(16); // make sure we are at the end of the header
+
+    // trainer
+    if(trainer.has_value()){
+        // trainer is a 512 byte region immediately after the header
+        // and before the PRG/CHR data that should be loaded into address
+        // 0x7000 in CPU memory. This is due to some workarounds for different
+        // cartrdige hardware.
+
+        std::array<uint8_t, 512> trainer_array = trainer.value();
+        char* trainer_array_raw = reinterpret_cast<char*>(trainer_array.data());
+        file.read(trainer_array_raw, 512);
+    }else{
+        trainer.reset();
+    }
+
+    // PRG ROM
+    prg_rom.reserve(prg_rom_size_bytes);
+    char* prg_rom_ptr = reinterpret_cast<char *>(prg_rom.data());
+    file.read(prg_rom_ptr, prg_rom_size_bytes);
+
+    // CHR ROM
+    chr_rom.reserve(chr_rom_size_bytes);
+    char* chr_rom_ptr = reinterpret_cast<char *>(chr_rom.data());
+    file.read(chr_rom_ptr, chr_rom_size_bytes);
 
     file.close();
 
-    VNES_ASSERT(0);
+    LOG(FATAL, "Unimplemented data fetch: set up RAM and place into CPU/PPU memory");
+    //VNES_ASSERT(0);
 }
 
 /*
