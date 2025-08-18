@@ -12,7 +12,16 @@ PPU::PPU(Cartridge& _cart, DMABus& _dmabus): cart {_cart}, dmabus {_dmabus} {
 }
 
 uint8_t PPU::register_read(uint16_t addr){
-    uint16_t mod_addr = (addr % 0x8) + 0x2000; // the RAM address range for PPU registers mirrors every 8 bytes
+    uint16_t mod_addr; 
+
+    // hack to get proper address: OAM DMA register is at 0x4014, and all other PPU
+    // register are in 0x2000 - 0x2007, but are also mirrored every 8 bytes
+    // (ie. 0x2000 and 0x2008 are treated the same)
+    if(addr == 0x4014){
+        mod_addr = addr;
+    }else{
+        mod_addr = (addr % 0x8) + 0x2000; // the RAM address range for PPU registers mirrors every 8 bytes
+    }
 
     uint8_t open_bus = 0; // reads from write-only regs should return latched bus value, see 'MMIO Registers' on https://www.nesdev.org/wiki/PPU_registers#MMIO_registers
     uint8_t data = 0;
@@ -69,7 +78,16 @@ uint8_t PPU::register_read(uint16_t addr){
 }
 
 void PPU::register_write(uint16_t addr, uint8_t data){
-    uint16_t mod_addr = (addr % 0x8) + 0x2000; // the RAM address range for PPU registers mirrors every 8 bytes
+    uint16_t mod_addr; 
+
+    // hack to get proper address: OAM DMA register is at 0x4014, and all other PPU
+    // register are in 0x2000 - 0x2007, but are also mirrored every 8 bytes
+    // (ie. 0x2000 and 0x2008 are treated the same)
+    if(addr == 0x4014){
+        mod_addr = addr;
+    }else{
+        mod_addr = (addr % 0x8) + 0x2000; // the RAM address range for PPU registers mirrors every 8 bytes
+    }
 
     // Some registers are write-locked for about 29658 CPU cycles after reset
     // 29658*3 = 88974 ppu cycles

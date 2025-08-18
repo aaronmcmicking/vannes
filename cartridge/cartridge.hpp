@@ -26,8 +26,8 @@ class Cartridge{
         uint8_t read_pallete(uint16_t addr);
 
         typedef enum NametableLayout{
-            VERTICAL = 0,
-            HORIZONTAL = 1
+            VERTICAL = 0, // vertical arrangement = "horizontally mirrored"
+            HORIZONTAL = 1 // horizontally arrangement = "verically mirrored"
         }NametableLayout;
 
         NametableLayout nametable_layout {};
@@ -91,4 +91,7 @@ class Cartridge{
         std::vector<uint8_t> prg_rom; // loaded in entirety, mapper is responsible for accessing properly
         std::vector<uint8_t> chr_rom; // loaded in entirety, mapper is responsible for accessing properly
         // Mapper should handle banked ROM data
+        //
+        void parse_iNES2_header();
+        void parse_iNES_header();
 };

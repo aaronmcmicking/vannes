@@ -62,6 +62,8 @@ inline uint8_t CPU::read_mem(uint16_t addr){
         case 0x2000 ... 0x3FFF: // PPU registers
             return ppu.register_read(addr);
             break;
+        case 0x4014: // 0x4014 is PPU OAM register
+            return ppu.register_read(addr); 
         default:
             return ram.read(addr);
             break;
@@ -81,6 +83,8 @@ inline void CPU::write_mem(uint16_t addr, uint8_t data){
         case 0x2000 ... 0x3FFF: // PPU registers
             ppu.register_write(addr, data);
             break;
+        case 0x4014: // 0x4014 is PPU OAM register
+            ppu.register_write(addr, data); 
         default:
             ram.write(addr, data);
             break;

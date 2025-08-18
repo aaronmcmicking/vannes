@@ -10,13 +10,16 @@ class Mapper000 : public Mapper{
         Mapper000(std::vector<uint8_t>& prg_rom, std::vector<uint8_t>& chr_rom): 
             prg_rom {prg_rom}, chr_rom {chr_rom}
         { 
+            VNES_LOG::LOG(VNES_LOG::DEBUG, "Initializing Mapper000");
             name = "Mapper000"; 
             if(prg_rom.size() <= 16384){
                 mirror_prg_16kb = true;
-                VNES_LOG::LOG(VNES_LOG::DEBUG, "Mapper sees that PRG ROM is more than 16kb and will mirror as 0xC000-0xFFFF as 0x8000-0xBFFF");
+                VNES_LOG::LOG(VNES_LOG::DEBUG, "Mapper sees that PRG ROM is less than 16KiB and will mirror PRG-ROM 0xC000-0xFFFF as 0x8000-0xBFFF");
             }else{
-                VNES_LOG::LOG(VNES_LOG::DEBUG, "Mapper sees that PRG ROM is NOT more than 16kb and will not mirror PRG ROM");
+                mirror_prg_16kb = false;
+                VNES_LOG::LOG(VNES_LOG::DEBUG, "Mapper sees that PRG ROM is more than 16KiB and will not mirror PRG-ROM");
             }
+            VNES_LOG::LOG(VNES_LOG::DEBUG, "Done initializing Mapper000");
         }
 
         uint8_t read(uint16_t addr) override {
