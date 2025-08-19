@@ -51,15 +51,15 @@ inline uint8_t CPU::fetch_instruction(){
 }
 
 inline uint8_t CPU::read_mem(uint16_t addr){
-    if(addr == 0x0180){
-        printf("Read from 0x0180 (PC is %x)\n", program_counter);
-        //do 
-        //{
-        //} while (std::cin.get() != '\n');
-    }
+    //if(addr == 0x0180){
+    //    printf("Read from 0x0180 (PC is %x)\n", program_counter);
+    //    //do 
+    //    //{
+    //    //} while (std::cin.get() != '\n');
+    //}
 
     switch(addr){
-        case 0x2000 ... 0x3FFF: // PPU registers
+        case 0x2000 ... 0x3FFF: // PPU 
             return ppu.register_read(addr);
             break;
         case 0x4014: // 0x4014 is PPU OAM register
@@ -72,19 +72,20 @@ inline uint8_t CPU::read_mem(uint16_t addr){
 }
 
 inline void CPU::write_mem(uint16_t addr, uint8_t data){
-    if(addr == 0x0180){
-        printf("Write to 0x0180 with data %2x (PC is %x)\n", data, program_counter);
-        do 
-        {
-        } while (std::cin.get() != '\n');
-    }
+    //if(addr == 0x0180){
+    //    printf("Write to 0x0180 with data %2x (PC is %x)\n", data, program_counter);
+    //    do 
+    //    {
+    //    } while (std::cin.get() != '\n');
+    //}
 
     switch(addr){
-        case 0x2000 ... 0x3FFF: // PPU registers
+        case 0x2000 ... 0x3FFF: // PPU 
             ppu.register_write(addr, data);
             break;
         case 0x4014: // 0x4014 is PPU OAM register
             ppu.register_write(addr, data); 
+            break;
         default:
             ram.write(addr, data);
             break;

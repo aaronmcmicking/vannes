@@ -6,6 +6,7 @@
 #include "common/util.hpp"
 #include "common/nes_assert.hpp"
 #include "cartridge/cartridge.cpp"
+#include "core/DMABus.cpp"
 #include "mappers/Mapper000.cpp"
 #include "controllers/Controller.cpp"
 
@@ -71,8 +72,12 @@ int main(int argc, char** argv){
     ram.write(RAM::RESET_VEC, 0x00);
     ram.write(RAM::RESET_VEC + 1, 0xc0);
     //ram.write(PPU::PPU_STATUS, 0xFF); // programs wait for PPU at reset
-    PPU ppu = PPU(ram, cart);
+
+    DMABus dma_bus {ram};
+    PPU ppu = PPU(cart, dma_bus);
     CPU cpu = CPU(ram, ppu);
+
+    log_level = INFO;
 
     // for nestest.nes
     ram.write(0x0002, 0);
@@ -124,7 +129,7 @@ int main(int argc, char** argv){
             cpu.step();
             steps_done++;
 
-            std::cin.get();
+            //std::cin.get();
         }
 
         char pressed_keys_text[10] = "XXXXXXXX";

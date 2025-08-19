@@ -19,6 +19,9 @@ class Mapper000 : public Mapper{
                 mirror_prg_16kb = false;
                 VNES_LOG::LOG(VNES_LOG::DEBUG, "Mapper sees that PRG ROM is more than 16KiB and will not mirror PRG-ROM");
             }
+
+            std::fill(std::begin(prg_ram), std::end(prg_ram), 0);
+
             VNES_LOG::LOG(VNES_LOG::DEBUG, "Done initializing Mapper000");
         }
 
@@ -26,9 +29,8 @@ class Mapper000 : public Mapper{
             using namespace VNES_LOG;
 
             switch(addr){
-                case 0x4020 ... 0x7FFF:
-                    LOG(FATAL, "CHR ROM is not accessible by the CPU and should only be accessed through the PPU (pattern table 0x0000 - 0x1FFF)");
-                    return chr_rom[addr % 0x4020];
+                case 0x6000 ... 0x7FFF:
+                    return prg_ram[addr % 0x6000];
                     break;
                 case 0x8000 ... 0xFFFF:
                     if(mirror_prg_16kb){
@@ -38,7 +40,7 @@ class Mapper000 : public Mapper{
                     }
                     break;
                 default:
-                    LOG(ERROR, "Mapper cannot read from cartridge memory at out-of-bounds address 0x%x (expected range is 0x4020 to 0xFFFF). Returning 0", addr);
+                    LOG(ERROR, "Out of bound cartridge mapper read at address 0x%x (expected 0x6000 to 0xFFFF)", addr);
                     return 0;
                     break;
             }
@@ -47,8 +49,8 @@ class Mapper000 : public Mapper{
         void write(uint16_t addr, uint8_t data) override {
             using namespace VNES_LOG;
             switch(addr){
-                case 0x4020 ... 0x7FFF:
-                    chr_rom[addr % 0x4020] = data;
+                case 0x6000 ... 0x7FFF:
+                    prg_ram[addr % 0x6000] = data;
                     break;
                 case 0x8000 ... 0xFFFF:
                     LOG(WARN, "Mapper write to ROM address 0x%x. Write will be allowed as it may be for debug purposes. Data is 0x%x", addr, data);
@@ -59,7 +61,7 @@ class Mapper000 : public Mapper{
                     }
                     break;
                 default:
-                    LOG(ERROR, "Mapper cannot write to cartridge memory at out-of-bounds address 0x%x (expected range is 0x4020 to 0x8000)", addr);
+                    LOG(ERROR, "Out of bound cartridge mapper write at address 0x%x (expected 0x6000 to 0xFFFF) with data 0x%x", addr, data);
                     break;
             }
         }
@@ -68,8 +70,11 @@ class Mapper000 : public Mapper{
         // provided by constructor
         std::vector<uint8_t>& prg_rom;
         std::vector<uint8_t>& chr_rom;
+        uint8_t prg_ram[0x2000] {}; // Original hardware Mapper000 doesn't contain this memory, but some emulators included it,
+                                    // so for compatibility 8KiB is included just in case
 
         // if the program data loaded from the cart is less than 16kb, then 
         // address 0xc000-0xFFFF mirrors 0x8000-0xBFFF
         bool mirror_prg_16kb = false;
 };
+

@@ -48,6 +48,5 @@ class RAM{
          * 0xFFFC - 0xFFFD: Reset Vector
          * 0xFFFE - 0xFFFF: BRK Vector
          */
-        static const int INTERNAL_MEM_ITEMS = 0x4020;
-        uint8_t mem[INTERNAL_MEM_ITEMS];
+        uint8_t ram[0x4020];
 };

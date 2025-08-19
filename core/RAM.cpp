@@ -13,9 +13,9 @@ RAM::RAM(Cartridge& _cart, Controller& _controller): cart {_cart}, controller {_
     // init RAM to 0, although this shouldn't be relied upon as actual reset
     // values were undefined (and unpredictable) in real hardware
     //for(int i = 0; i < INTERNAL_MEM_ITEMS; i++){
-    //    mem[i] = 0;
+    //    ram[i] = 0;
     //}
-    std::fill(std::begin(mem), std::end(mem), 0);
+    std::fill(std::begin(ram), std::end(ram), 0);
 }
 
 void RAM::write(uint16_t addr, uint8_t data){
@@ -23,22 +23,22 @@ void RAM::write(uint16_t addr, uint8_t data){
     if(addr <= 0x2000 && addr % 0x0800 == 0x0180) { printf("RAM.write(): addr 0x%x mirrors or is 0x0180, data is 0x%x\n", addr, data); }
     switch(addr){
         case 0x0000 ... 0x1FFF: // 2kb program RAM, 4 mirrored sections (each 0x0800 addrs)
-            mem[(addr % 0x0800)] = data;
+            ram[(addr % 0x0800)] = data;
             break;
         case 0x2000 ... 0x3FFF: // PPU registers
             // check for locked registers after reset
-            //mem[(addr % 0x8) + 0x2000] = data; // mirrors every 8 bytes
+            //ram[(addr % 0x8) + 0x2000] = data; // mirrors every 8 bytes
             //ppu.register_write(addr, data);
             LOG(ERROR, "RAM shouldn't be trying to write to PPU register %u with data %u, CPU should have handled this!", addr, data);
             break;
         case 0x4000 ... 0x4015: // APU
-            mem[addr] = data;
+            ram[addr] = data;
             break;
         case 0x4016 ... 0x4017: //  I/O registers (controllers)
             controller.write(addr, data); 
             break;
         case 0x4018 ... 0x401F: // Normally APU and I/O, for CPU Test
-            mem[addr] = data;
+            ram[addr] = data;
             LOG(WARN, "Write to normally unused (CPU Test mode only) address 0x%x", addr);
             break;
         case 0x4020 ... 0xFFFF: // cartridge ROM
@@ -58,22 +58,22 @@ uint8_t RAM::read(uint16_t addr){
     uint8_t data = 0;
     switch(addr){
         case 0x0000 ... 0x1FFF: // 2kb program RAM, 4 mirrored sections (each 0x0800 addrs)
-            data = mem[(addr % 0x0800)];
+            data = ram[(addr % 0x0800)];
             break;
         case 0x2000 ... 0x3FFF: // PPU registers
             //ppu.register_read(addr);
             LOG(ERROR, "RAM shouldn't be trying to read PPU register %u, CPU should have handled this!", addr);
-            //data = mem[(addr % 0x8) + 0x2000]; // mirrors every eight bytes
+            //data = ram[(addr % 0x8) + 0x2000]; // mirrors every eight bytes
             break;
         case 0x4000 ... 0x4015:
-            data = mem[addr];
+            data = ram[addr];
             break;
         case 0x4016 ... 0x4017:
             data = controller.read(addr);
             break;
         case 0x4018 ... 0x401F:
-            LOG(WARN, "Read to normally unused (CPU Test mode only) address 0x%x returns value 0x%x", addr, mem[addr]);
-            data = mem[addr];
+            LOG(WARN, "Read to normally unused (CPU Test mode only) address 0x%x returns value 0x%x", addr, ram[addr]);
+            data = ram[addr];
             break;
         case 0x4020 ... 0xFFFF:
             data = cart.read(addr);

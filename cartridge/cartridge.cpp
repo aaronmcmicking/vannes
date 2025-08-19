@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <bitset>
 #include <cmath>
 #include <exception>
@@ -17,48 +18,12 @@ Cartridge::Cartridge(std::string filename): mapper {nullptr} {
     set_mapper(); 
 }
 
-/*
 Cartridge::Cartridge(): mapper {nullptr}{ // dummy cart with 16k PRG and 8k CHR available
     using namespace VNES_LOG;
-    header.nes_title[0]             = 0x4E;       
-    header.nes_title[1]             = 0x45;       
-    header.nes_title[2]             = 0x53;       
-    header.nes_title[3]             = 0x1A;       
-    header.prg_rom_size_x16kb       = 2; 
-    header.chr_rom_size_x8kb        = 1;  
-    header.flags_6                  = 0;            
-    header.flags_7                  = 0;            
-    header.flags_8                  = 0;            
-    header.flags_9                  = 0;            
-    header.padding[0]               = 0;         
-    header.padding[1]               = 0;         
-    header.padding[2]               = 0;         
-    header.padding[3]               = 0;         
-    header.padding[4]               = 0;         
-    header.padding[5]               = 0;         
 
-    trainer.reset();
-
-    // get prg rom
-    LOG(INFO, "Loading empty PRG ROM.", header.prg_rom_size_x16kb);
-    prg_rom.clear();
-    for(int i = 0; i < header.prg_rom_size_x16kb*16384; i++){
-        prg_rom.insert(prg_rom.end(), 5); 
-    }
-    LOG(DEBUG, "header.prg_rom_size_x16kb is %d: loaded %d bytes to prg_rom", header.prg_rom_size_x16kb, prg_rom.size());
-
-    // get chr rom
-    LOG(INFO, "Loading empty CHR ROM");
-    chr_rom.clear();
-    for(int i = 0; i < header.chr_rom_size_x8kb*8192; i++){
-        chr_rom.insert(chr_rom.end(), i % 0x100); 
-    }
-    LOG(DEBUG, "header.chr_rom_size_x8kb is %d: loaded %d bytes to chr_rom", header.chr_rom_size_x8kb, chr_rom.size());
-
+    load_dummy_rom();
     set_mapper();
 }
-*/
-
 
 void Cartridge::set_mapper(){
     switch(mapper_number){
@@ -73,6 +38,29 @@ void Cartridge::set_mapper(){
     VNES_LOG::LOG(VNES_LOG::INFO, "Set cartridge mapper to %s", mapper->name.c_str());
 }
 
+void Cartridge::load_dummy_rom(){
+    VNES_LOG::LOG(VNES_LOG::DEBUG, "Constructing dummy cartridge");
+
+    header = Header(); // get dummy header
+
+    parse_iNES_header();
+
+    trainer.reset();
+
+    // PRG ROM
+    prg_rom.clear();
+    prg_rom.resize(prg_rom_size_bytes);
+    std::fill(prg_rom.begin(), prg_rom.end(), 1);
+
+    // CHR ROM
+    chr_rom.clear();
+    chr_rom.resize(chr_rom_size_bytes);
+    std::fill(chr_rom.begin(), chr_rom.end(), 2);
+    
+
+    VNES_LOG::LOG(VNES_LOG::DEBUG, "Finished constructing dummy cartridge");
+
+}
 
 void Cartridge::load_rom(std::string filename){
     using namespace VNES_LOG;
@@ -90,10 +78,7 @@ void Cartridge::load_rom(std::string filename){
         LOG(INFO, "Opened ROM file: %s", filename.c_str());
     }
 
-    Header _header {file};
-    header = _header;
-
-    std::cout << "cart sees: data.prg_rom = " << std::bitset<8>(header.data.prg_rom_size_lsb) << std::endl;
+    header = Header(file);
 
     if(header.header_format == Header::iNES){
         // see https://www.nesdev.org/wiki/INES
@@ -115,7 +100,7 @@ void Cartridge::load_rom(std::string filename){
             // trainer is a 512 byte region immediately after the header
             // and before the PRG/CHR data that should be loaded into address
             // 0x7000 in CPU memory. This is due to some workarounds for different
-            // cartrdige hardware.
+            // cartridge hardware.
 
             std::array<uint8_t, 512> trainer_array = trainer.value();
             char* trainer_array_raw = reinterpret_cast<char*>(trainer_array.data());
@@ -127,8 +112,6 @@ void Cartridge::load_rom(std::string filename){
         // PRG ROM
         prg_rom.clear();
         prg_rom.resize(prg_rom_size_bytes);
-        std::cout << "reserved " << prg_ram_size_bytes << " bytes" << std::endl;
-        std::cout << "prg_rom.size() = " << prg_rom.size() << std::endl;
         char* prg_rom_ptr = reinterpret_cast<char *>(prg_rom.data());
         file.read(prg_rom_ptr, prg_rom_size_bytes);
 
@@ -138,7 +121,7 @@ void Cartridge::load_rom(std::string filename){
         char* chr_rom_ptr = reinterpret_cast<char *>(chr_rom.data());
         file.read(chr_rom_ptr, chr_rom_size_bytes);
 
-    }catch(std::exception e){
+    }catch(std::exception& e){
         VNES_LOG::LOG(VNES_LOG::FATAL, "Failed to load ROM from file. Exception was: %s", e.what());
         VNES_ASSERT(0 && "Failed to load ROM from file");
     }
@@ -146,16 +129,16 @@ void Cartridge::load_rom(std::string filename){
     file.close();
 
 
-    std::cout << "trainer.has_value() = " << trainer.has_value() << std::endl;
-    std::cout << "prg_rom.size() = " << prg_rom.size() << std::endl;
-    std::cout << "chr_rom.size() = " << chr_rom.size() << std::endl;
-    std::cout << "prg_rom_size_bytes = " << prg_rom_size_bytes << std::endl;
-    std::cout << "chr_rom_size_bytes = " << chr_rom_size_bytes << std::endl;
-    std::cout << "prg_ram_size_bytes = " << prg_ram_size_bytes << std::endl;
-    std::cout << "mapper = " << mapper_number << std::endl;
-    std::cout << "nametable_layout = " << nametable_layout << std::endl;
-    std::cout << "flags_6 = " << std::bitset<8>(header.data.flags_6) << std::endl;
-    std::cout << "flags_7 = " << std::bitset<8>(header.data.flags_7) << std::endl;
+    //std::cout << "trainer.has_value() = " << trainer.has_value() << std::endl;
+    //std::cout << "prg_rom.size() = " << prg_rom.size() << std::endl;
+    //std::cout << "chr_rom.size() = " << chr_rom.size() << std::endl;
+    //std::cout << "prg_rom_size_bytes = " << prg_rom_size_bytes << std::endl;
+    //std::cout << "chr_rom_size_bytes = " << chr_rom_size_bytes << std::endl;
+    //std::cout << "prg_ram_size_bytes = " << prg_ram_size_bytes << std::endl;
+    //std::cout << "mapper = " << mapper_number << std::endl;
+    //std::cout << "nametable_layout = " << nametable_layout << std::endl;
+    //std::cout << "flags_6 = " << std::bitset<8>(header.data.flags_6) << std::endl;
+    //std::cout << "flags_7 = " << std::bitset<8>(header.data.flags_7) << std::endl;
 
 }
 
@@ -182,12 +165,10 @@ void Cartridge::parse_iNES_header(){
 
     // PRG-ROM
     uint8_t prg_rom_size_x16KiB = header.data.prg_rom_size_lsb;
-    std::cout << "header.data.prg_rom_size_lsb = " << std::bitset<8>(header.data.prg_rom_size_lsb) << std::endl;
     prg_rom_size_bytes = prg_rom_size_x16KiB * 16384;
 
     // CHR-ROM
     uint8_t chr_rom_size_x8KiB = header.data.chr_rom_size_lsb;
-    std::cout << "header.data.chr_rom_size_lsb = " << std::bitset<8>(header.data.chr_rom_size_lsb) << std::endl;
     chr_rom_size_bytes = chr_rom_size_x8KiB * 8192;
     
     // nametable layout
@@ -201,8 +182,6 @@ void Cartridge::parse_iNES_header(){
         prg_ram_size_x8KiB = 1; // if byte is zero, 8KiB are assumed present by default. see https://www.nesdev.org/wiki/INES#Flags_8
     }
     prg_ram_size_bytes = prg_ram_size_x8KiB * 8192;
-    
-
 
 }
 
@@ -313,112 +292,6 @@ void Cartridge::parse_iNES2_header(){
 
 }
 
-/*
-void Cartridge::load_rom_old(std::string filename){
-    using namespace VNES_LOG;
-    LOG(INFO, "Loading ROM.");
-    std::ifstream file {};
-    file.open(filename, std::ios::binary | std::ios::in);
-    LOG(INFO, "Loading ROM: %s", filename.c_str());
-    //std::cout << "Loading ROM: " << filename << std::endl;
-    
-    if(!file.is_open()){
-        LOG(FATAL, "Failed to open ROM file to read. Exiting");
-        VNES_ASSERT(0 && "Failed to open ROM file for reading");
-    }
-
-    header.nes_title[0]             = file.get();       
-    header.nes_title[1]             = file.get();       
-    header.nes_title[2]             = file.get();       
-    header.nes_title[3]             = file.get();       
-    header.prg_rom_size_x16kb       = file.get(); 
-    header.chr_rom_size_x8kb        = file.get();  
-    header.flags_6                  = file.get();            
-    header.flags_7                  = file.get();            
-    header.flags_8                  = file.get();            
-    header.flags_9                  = file.get();            
-    header.padding[0]               = file.get();         
-    header.padding[1]               = file.get();         
-    header.padding[2]               = file.get();         
-    header.padding[3]               = file.get();         
-    header.padding[4]               = file.get();         
-    header.padding[5]               = file.get();         
-
-    // check header tag
-    if(  !(header.nes_title[0] == 0x4E      
-        && header.nes_title[1] == 0x45 
-        && header.nes_title[2] == 0x53  
-        && header.nes_title[3] == 0x1A) // 0x1A is MS DOS end-of-line
-    ){
-        LOG(WARN, "Didn't find 'NES' at start of ROM file as expected by iNES standard. Instead got %x %x %x %x. Is the ROM malformed? Continuing with execution, but there may have actually been a critical error!", header.nes_title[0], header.nes_title[1], header.nes_title[2], header.nes_title[3]);
-    }
-
-    // check header format
-    if(   // if NOT in NES2 format and final 4 bytes of header are NOT zeroes
-          !((header.flags_7 | 0b00001100) == 0b00001000) // "If [bits[3:2]] equal to 2, flags 8-15 are in NES 2.0 format"
-       && (header.padding[2] | header.padding[3] | header.padding[4] | header.padding[5])){
-        LOG(INFO, "Found data in final 4 bytes of cartridge header when header did not select NES2 standard. Sometimes this indicates the ROM complies to an old version of the iNES standard, but may also mean the ROM is malformed or 'authour-signatured'. Clearing mapper number to bottom 4 bits and continuing");
-        header.flags_7 &= 0b00001111;
-    }
-
-    // set mapper number
-    mapper_number = (header.flags_7 & 0b11110000) | (header.flags_6 >> 4);
-
-    // get trainer
-    bool trainer_present = header.flags_6 & 0b00000100;
-    if(trainer_present){
-        trainer.emplace();
-        for(int i = 0; i < 512; i++){
-            trainer.value()[i] = file.get();
-        }
-    }else{
-        trainer.reset();
-    }
-
-    // get prg rom
-    LOG(INFO, "Loading PRG ROM.", header.prg_rom_size_x16kb);
-    prg_rom.clear();
-    for(int i = 0; i < header.prg_rom_size_x16kb*16384; i++){
-        prg_rom.insert(prg_rom.end(), file.get()); 
-    }
-    LOG(DEBUG, "header.prg_rom_size_x16kb is %d: loaded %d bytes to prg_rom", header.prg_rom_size_x16kb, prg_rom.size());
-
-    // get chr rom
-    LOG(INFO, "Loading CHR ROM");
-    chr_rom.clear();
-    for(int i = 0; i < header.chr_rom_size_x8kb*8192; i++){
-        chr_rom.insert(chr_rom.end(), file.get()); 
-    }
-    LOG(DEBUG, "header.chr_rom_size_x8kb is %d: loaded %d bytes to chr_rom", header.chr_rom_size_x8kb, chr_rom.size());
-
-    file.close();
-    LOG(INFO, "Finished loading ROM.");
-}
-*/
-
-
-//void Cartridge::dump_rom(){
-//    VNES_LOG::LOG(VNES_LOG::INFO, "Dumping PRG ROM");
-//    int count = 0;
-//    for(uint8_t byte_: prg_rom){
-//        printf("%2x", byte_);
-//        if(count && !(count % 2)) printf(" ");
-//        if(count && !(count % 16)) printf("\n");
-//        count++;
-//    }
-//    printf("\n\n");
-//
-//    VNES_LOG::LOG(VNES_LOG::INFO, "Dumping CHR ROM");
-//    count = 0;
-//    for(uint8_t byte_: chr_rom){
-//        printf("%2x", byte_);
-//        if(count && !(count % 2)) printf(" ");
-//        if(count && !(count % 16)) printf("\n");
-//        count++;
-//    }
-//    printf("\n");
-//}
-
 void Cartridge::dump_rom(){
     for(unsigned int i = 0x0000; i < prg_rom.size(); i++){
         int data1 = prg_rom[i];
@@ -460,14 +333,20 @@ uint8_t Cartridge::read(uint16_t addr){
 
 uint8_t Cartridge::read_pallete(uint16_t addr){
     addr &= 0x3FFF;
-    if(!chr_rom.size()){
-        VNES_LOG::LOG(VNES_LOG::ERROR, "Tried to read address 0x%x from empty CHR ROM", addr);
-    }
-    if(addr > chr_rom.size()){
+    if(addr > chr_rom.size() || !chr_rom.size()){
         VNES_LOG::LOG(VNES_LOG::ERROR, "Out of bounds CHR ROM read at address 0x%x in CHR ROM of size 0x%x", addr, chr_rom.size());
         addr %= chr_rom.size();
     }
-    return chr_rom.at(addr);
+    return chr_rom[addr];
+}
+
+void Cartridge::write_pallete(uint16_t addr, uint8_t data){
+    addr &= 0x3FFF;
+    if(addr > chr_rom.size() || !chr_rom.size()){
+        VNES_LOG::LOG(VNES_LOG::ERROR, "Out of bounds CHR ROM write at address 0x%x with data 0x%x in CHR ROM of size 0x%x", addr, data, chr_rom.size());
+        addr %= chr_rom.size();
+    }
+    chr_rom[addr] = data;
 }
 
 void Cartridge::write(uint16_t addr, uint8_t data){

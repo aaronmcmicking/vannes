@@ -111,8 +111,8 @@ class PPU{
         uint8_t reg_w; // 1 bit, first or second write toggle
 
         //RAM& ram;
-        DMABus& dmabus;
         Cartridge& cart;
+        DMABus& dmabus;
         
         uint64_t cycles_since_reset;
         int frame_cycle;

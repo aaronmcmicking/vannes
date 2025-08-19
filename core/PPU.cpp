@@ -12,11 +12,11 @@ PPU::PPU(Cartridge& _cart, DMABus& _dmabus): cart {_cart}, dmabus {_dmabus} {
 }
 
 uint8_t PPU::register_read(uint16_t addr){
-    uint16_t mod_addr; 
 
     // hack to get proper address: OAM DMA register is at 0x4014, and all other PPU
     // register are in 0x2000 - 0x2007, but are also mirrored every 8 bytes
     // (ie. 0x2000 and 0x2008 are treated the same)
+    uint16_t mod_addr; 
     if(addr == 0x4014){
         mod_addr = addr;
     }else{
@@ -57,7 +57,12 @@ uint8_t PPU::register_read(uint16_t addr){
 			break;
         case PPU_DATA:	// R/W 	PPU Data
             data = ppu_data_read_buffer;
-            ppu_data_read_buffer = vram[ppu_addr];
+
+            if(ppu_addr <= 0x1FFF){
+                ppu_data_read_buffer = cart.read_pallete(ppu_addr);
+            }else{
+                ppu_data_read_buffer = vram[ppu_addr];
+            }
 
             if(ppu_ctrl | 0x04){ // after access, addr increments by 1 or 32, specified by bit 2 of PPU_CTRL
                 ppu_addr += 32;
@@ -78,11 +83,11 @@ uint8_t PPU::register_read(uint16_t addr){
 }
 
 void PPU::register_write(uint16_t addr, uint8_t data){
-    uint16_t mod_addr; 
 
     // hack to get proper address: OAM DMA register is at 0x4014, and all other PPU
     // register are in 0x2000 - 0x2007, but are also mirrored every 8 bytes
     // (ie. 0x2000 and 0x2008 are treated the same)
+    uint16_t mod_addr; 
     if(addr == 0x4014){
         mod_addr = addr;
     }else{
@@ -155,7 +160,13 @@ void PPU::register_write(uint16_t addr, uint8_t data){
         case PPU_DATA:	// R/W 	PPU Data
             // After access, the video memory address will increment by an amount determined by bit 2 of $2000. 
             // v register?
-            vram[ppu_addr] = data;
+
+            if(ppu_addr <= 0x1FFF){
+                cart.write_pallete(addr, data);
+            }else{
+                vram[ppu_addr] = data;
+            }
+
             if(ppu_ctrl | 0x04){ // after access, addr increments by 1 or 32, specified by bit 2 of PPU_CTRL
                 ppu_addr += 32;
             }else{
@@ -223,48 +234,8 @@ void PPU::vram_write(uint16_t addr, uint8_t data){
         default:
             vram[addr_14b] = data;
             break;
-}
-/*
-void PPU::write(uint16_t addr, uint8_t data){
-    const std::vector<PPU_regs> write_locked_after_reset {PPU_CTRL, PPU_MASK, PPU_SCROLL, PPU_ADDR};
-    // some registers are write-locked for about 30,000 CPU cycles after reset
-    if(cycles_since_reset && (cycles_since_reset / 3) < 29658 
-            && std::find(write_locked_after_reset.begin(), write_locked_after_reset.end(), addr) != write_locked_after_reset.end())
-    {
-        VNES_LOG::LOG(VNES_LOG::DEBUG, "Write to PPU register address 0x%x ignored at %lld CPU cycles after reset", addr, cycles_since_reset / 3);
-        return;
-    }
-    // TODO: check for read-only registers
-    internal_write(addr, data);
-}
-
-uint8_t PPU::read(uint16_t addr){
-    // TODO: check for write-only registers
-    return internal_read(addr);
-}
-
-void PPU::internal_write(uint16_t addr, uint8_t data){
-    if(addr == PPU_CTRL){
-        data = internal_read(PPU_CTRL) & 0x7F; // set nmi_output
-    }
-    ram.write(addr, data);
-
-    // reading OAM_DATA automatically increments OAM_ADDR
-    if(addr == PPU_OAM_DATA){
-        uint8_t oam_addr = ram.read(PPU_OAM_ADDR);
-        oam_addr++;
-        ram.write(PPU_OAM_ADDR, oam_addr);
     }
 }
-
-uint8_t PPU::internal_read(uint16_t addr){
-    uint8_t data = ram.read(addr);
-    if(addr == PPU_STATUS){
-        internal_write(addr, data & 0x7F); // clear nmi_occured, return old value, 'vblank flag'
-    }
-    return data;
-}
-*/
 
 bool PPU::check_nmi(){
     //return (internal_read(PPU_CTRL) & 0x80) && (internal_read(PPU_STATUS) & 0x80);
