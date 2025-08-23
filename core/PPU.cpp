@@ -4,8 +4,7 @@
 #include "../common/log.hpp"
 #include <algorithm>
 
-//PPU::PPU(RAM& _ram, Cartridge& _cart): ram {_ram}, cart {_cart} { 
-PPU::PPU(Cartridge& _cart, DMABus& _dmabus): cart {_cart}, dmabus {_dmabus} { 
+PPU::PPU(Cartridge& _cart, RAM& _ram): ram {_ram}, cart {_cart} { 
     VNES_LOG::LOG(VNES_LOG::INFO, "Constructing PPU");
     power_up();
     VNES_LOG::LOG(VNES_LOG::INFO, "Done constructing PPU");
@@ -37,7 +36,7 @@ uint8_t PPU::register_read(uint16_t addr){
         case PPU_STATUS:	// R 	PPU Status
             data = ppu_status;
 
-            reg_w = 0; // reading PPU_STATUS resets the w register
+            ppu_register_w = 0; // reading PPU_STATUS resets the w register
             ppu_status &= 0x7F; // reading PPU_STATUS returns and then resets the value of the vblank flag
 			break;
         case PPU_OAM_ADDR:	// W 	OAM Address
@@ -58,11 +57,12 @@ uint8_t PPU::register_read(uint16_t addr){
         case PPU_DATA:	// R/W 	PPU Data
             data = ppu_data_read_buffer;
 
-            if(ppu_addr <= 0x1FFF){
-                ppu_data_read_buffer = cart.read_pallete(ppu_addr);
-            }else{
-                ppu_data_read_buffer = vram[ppu_addr];
-            }
+            ppu_data_read_buffer = vram_read(addr);
+            //if(ppu_addr <= 0x1FFF){
+            //    ppu_data_read_buffer = cart.read_pattern_table(ppu_addr);
+            //}else{
+            //    ppu_data_read_buffer = vram[ppu_addr];
+            //}
 
             if(ppu_ctrl | 0x04){ // after access, addr increments by 1 or 32, specified by bit 2 of PPU_CTRL
                 ppu_addr += 32;
@@ -131,41 +131,42 @@ void PPU::register_write(uint16_t addr, uint8_t data){
             // PPU_SCROLL is 16 bits wide writing to PPU_SCROLL 
             
             // t register? x register?
-            if(!(reg_w & 0x1)){
+            if(!(ppu_register_w & 0x1)){
                 // w=0, first write, X scroll bits
                 ppu_scroll &= 0xFF00; // preserve bits 15-8 and clear 7-0
                 ppu_scroll |= data; // update 7-0
-                reg_w = 1;
+                ppu_register_w = 1;
             }else{
                 // w=1, second write, Y scroll bits
                 ppu_scroll &= 0x00FF; // preserve bits 7-0 and clear 15-8
                 ppu_scroll |= (data << 8); // update bits 15-8
-                reg_w = 0;
+                ppu_register_w = 0;
             }
 			break;
         case PPU_ADDR:	// W 2x 	PPU Address \newline (write upper then lower)
             // t register? v register?
-            if(!(reg_w & 0x1)){
+            if(!(ppu_register_w & 0x1)){
                 // w=0, first write, high byte
                 ppu_addr &= 0x00FF; // preserve bits 7-0 and clear 15-8
                 ppu_scroll |= (data << 8); // update 15-8
-                reg_w = 1;
+                ppu_register_w = 1;
             }else{
                 // w=1, second write, low byte
                 ppu_scroll &= 0xFF00; // preserve bits 15-8 and clear 7-0
                 ppu_scroll |= data; // update bits 7-0
-                reg_w = 0;
+                ppu_register_w = 0;
             }
 			break;
         case PPU_DATA:	// R/W 	PPU Data
             // After access, the video memory address will increment by an amount determined by bit 2 of $2000. 
             // v register?
 
-            if(ppu_addr <= 0x1FFF){
-                cart.write_pallete(addr, data);
-            }else{
-                vram[ppu_addr] = data;
-            }
+            vram_write(addr, data);
+            //if(ppu_addr <= 0x1FFF){
+            //    cart.write_pattern_table(addr, data);
+            //}else{
+            //    vram[ppu_addr] = data;
+            //}
 
             if(ppu_ctrl | 0x04){ // after access, addr increments by 1 or 32, specified by bit 2 of PPU_CTRL
                 ppu_addr += 32;
@@ -174,13 +175,13 @@ void PPU::register_write(uint16_t addr, uint8_t data){
             }
 			break;
         case PPU_OAM_DMA:	// W 	Sprite Page DMA Transfer 
-			/* handler */
 
             // DMA is 256 pairs of READ FROM RAM (starting from address 0x[data]00) and writing to OAMDATA (will use current OAMADDR, programmer's responsibility to set proper starting address)
             for(int i = 0x0; i <= 0xFF; i++){
                 // DMABus reads, OMADATA writes
                 uint8_t current_addr = (data << 8) | i;
-                register_write(PPU_OAM_DATA, dmabus.read(current_addr));
+                //register_write(PPU_OAM_DATA, dmabus.read(current_addr));
+                register_write(PPU_OAM_DATA, ram.read(current_addr));
             }
 
             VNES_LOG::LOG(VNES_LOG::WARN, "PPU OAM DMA should add 514 cycles to the CPU");
@@ -211,7 +212,7 @@ uint8_t PPU::vram_read(uint16_t addr){
     switch(addr){
         case 0x0000 ... 0x1FFF:
             // 
-            data = cart.read_pallete(addr_14b);
+            data = cart.read_pattern_table(addr_14b);
             break;
 
         default:
@@ -238,7 +239,6 @@ void PPU::vram_write(uint16_t addr, uint8_t data){
 }
 
 bool PPU::check_nmi(){
-    //return (internal_read(PPU_CTRL) & 0x80) && (internal_read(PPU_STATUS) & 0x80);
     return (ppu_ctrl & 0x80) && (ppu_status & 0x80);
 }
 
@@ -258,18 +258,11 @@ void PPU::reset(){
     VNES_LOG::LOG(VNES_LOG::INFO, "Resetting PPU");
     cycles_since_reset = 0;
     frame_cycle = 0;
-    //scanline_cycle = 0;
     scanline = 0;
     dot = 0;
-    //for(int x = 0; x < 256; x++){
-    //    for(int y = 0; y < 224; y++){
-    //        buffer[x][y] = 0;
-    //    }
-    //}
     for(int i = 0; i < 256*224; i++){
         buffer[i] = 0;
     }
-    //vblank = false;
     frame_done = false;
     odd_frame = false;
 
@@ -283,7 +276,6 @@ void PPU::reset(){
 }
 
 void PPU::do_cycles(int cycles_to_do){
-    //VNES_LOG::LOG(VNES_LOG::DEBUG, "PPU cycle requested");
     for(int i = 0; i < cycles_to_do; i++){
         cycle();
     }

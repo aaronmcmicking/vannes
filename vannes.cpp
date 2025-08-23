@@ -6,7 +6,6 @@
 #include "common/util.hpp"
 #include "common/nes_assert.hpp"
 #include "cartridge/cartridge.cpp"
-#include "core/DMABus.cpp"
 #include "mappers/Mapper000.cpp"
 #include "controllers/Controller.cpp"
 
@@ -73,8 +72,9 @@ int main(int argc, char** argv){
     ram.write(RAM::RESET_VEC + 1, 0xc0);
     //ram.write(PPU::PPU_STATUS, 0xFF); // programs wait for PPU at reset
 
-    DMABus dma_bus {ram};
-    PPU ppu = PPU(cart, dma_bus);
+    //DMABus dma_bus {ram};
+    //PPU ppu = PPU(cart, dma_bus);
+    PPU ppu = PPU(cart, ram);
     CPU cpu = CPU(ram, ppu);
 
     log_level = INFO;

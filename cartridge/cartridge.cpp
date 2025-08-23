@@ -331,7 +331,7 @@ uint8_t Cartridge::read(uint16_t addr){
     }
 }
 
-uint8_t Cartridge::read_pallete(uint16_t addr){
+uint8_t Cartridge::read_pattern_table(uint16_t addr){
     addr &= 0x3FFF;
     if(addr > chr_rom.size() || !chr_rom.size()){
         VNES_LOG::LOG(VNES_LOG::ERROR, "Out of bounds CHR ROM read at address 0x%x in CHR ROM of size 0x%x", addr, chr_rom.size());
@@ -340,7 +340,7 @@ uint8_t Cartridge::read_pallete(uint16_t addr){
     return chr_rom[addr];
 }
 
-void Cartridge::write_pallete(uint16_t addr, uint8_t data){
+void Cartridge::write_pattern_table(uint16_t addr, uint8_t data){
     addr &= 0x3FFF;
     if(addr > chr_rom.size() || !chr_rom.size()){
         VNES_LOG::LOG(VNES_LOG::ERROR, "Out of bounds CHR ROM write at address 0x%x with data 0x%x in CHR ROM of size 0x%x", addr, data, chr_rom.size());

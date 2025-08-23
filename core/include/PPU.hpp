@@ -1,14 +1,12 @@
 #pragma once
 
-//#include "RAM.hpp"
+#include "RAM.hpp"
 #include "../../cartridge/cartridge.hpp"
-#include "DMABus.hpp"
 #include "../../common/typedefs.hpp"
 
 class PPU{
     public:
-        //PPU(RAM& _ram, Cartridge& _cart);
-        PPU(Cartridge& _cart, DMABus& _dmabus);
+        PPU(Cartridge& _cart, RAM& _ram);
         void power_up();
         void reset();
         void do_cycles(int cycles_to_do);
@@ -16,12 +14,8 @@ class PPU{
         void register_write(uint16_t addr, uint8_t data);
         uint8_t register_read(uint16_t addr);
 
-        //void    write(uint16_t addr, uint8_t data);
-        //uint8_t read(uint16_t addr);
-
         bool check_nmi();
 
-        //int buffer[256][224]; // x = 256, y = 244, so index as buffer[x][y]
         int buffer[256*224]; 
 
         // see https://8bitworkshop.com/blog/platforms/nintendo-nes.md.html for
@@ -39,12 +33,18 @@ class PPU{
         };
 
     private:
-        /*
-         * TODO remove me
-          good memory map resource https://forums.nesdev.org/viewtopic.php?t=10297
-         */
-        
-        // internal ram
+        void cycle();
+
+        uint8_t vram_read(uint16_t addr);
+        void vram_write(uint16_t addr, uint8_t data);
+
+        RAM& ram; // RAM is only needed in PPU for DMA transfers
+        Cartridge& cart;
+
+        // OAM
+        uint8_t OAM_PRIMARY[4*64]; // primary OAM can hold 64 sprites, each 4 bytes long
+        uint8_t OAM_SECONDARY[4*8]; // secondary OAM holds only 8 sprites
+                                    
         /*
          * The VRAM address space contains graphics data, including pattern tables,
          * nametables, attribute tables, and pallete data. Most of the address
@@ -79,13 +79,10 @@ class PPU{
         uint8_t vram[0x4000]; // 0x4000 = 16384 bytes = 14-bit address line
                                  // see https://www.nesdev.org/wiki/PPU_memory_map
                               // 0x0000 - 0x1FFF of this array are unused since
-                              // accesses there are rerouted to pallete data on the cart,
+                              // accesses there are rerouted to pattern table data on the cart,
                               // but keeping the array this size makes addressing easier
 
-        uint8_t vram_read(uint16_t addr);
-        void vram_write(uint16_t addr, uint8_t data);
-
-        // registers
+        // external registers
         uint8_t ppu_ctrl;
         uint8_t ppu_mask;
         uint8_t ppu_status;
@@ -100,37 +97,18 @@ class PPU{
         // see https://www.nesdev.org/wiki/PPU_registers#The_PPUDATA_read_buffer_(post-fetch)
         uint8_t ppu_data_read_buffer;
 
-        // OAM
-        uint8_t OAM_PRIMARY[4*64]; // primary OAM can hold 64 sprites, each 4 bytes long
-        uint8_t OAM_SECONDARY[4*8]; // secondary OAM holds only 8 sprites
-
         // internal registers, see https://www.nesdev.org/wiki/PPU_scrolling
-        uint16_t reg_v; // 15 bits, current VRAM address. Note PPU address is 14 bits wide, so top bit unused through 0x2007
-        uint16_t reg_t; // 15 bits, temp VRAM address (also thought as address of top left onscreen tile)
-        uint8_t reg_x; // 3 bits, fine X scroll
-        uint8_t reg_w; // 1 bit, first or second write toggle
-
-        //RAM& ram;
-        Cartridge& cart;
-        DMABus& dmabus;
-        
+        uint16_t ppu_register_v; // 15 bits, current VRAM address. Note PPU address is 14 bits wide, so top bit unused through 0x2007 but used for scrolling/rendering
+        uint16_t ppu_register_t; // 15 bits, temp VRAM address (also thought as address of top left onscreen tile)
+        uint8_t ppu_register_x; // 3 bits, fine X scroll
+        bit ppu_register_w; // 1 bit, first or second write toggle
+                    
         uint64_t cycles_since_reset;
         int frame_cycle;
-        //int scanline_cycle;
         int scanline;
         int dot;
 
-        //bool vblank;
         bool frame_done;
         bool odd_frame;
-
-        //bit nmi_occured;
-        //bit nmi_output;
-
-        //void    internal_write(uint16_t addr, uint8_t data);
-        //uint8_t internal_read(uint16_t addr);
-
-        void cycle();
-
 
 };

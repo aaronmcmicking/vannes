@@ -42,6 +42,7 @@ class CPU{
         bit decimal_f;
         bit overflow_f;
         bit negative_f;
+
     public: 
         uint8_t status_as_int(); // returns the packed status register
         void    set_status_reg(uint8_t data); 

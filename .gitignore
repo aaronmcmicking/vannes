@@ -1,17 +1,15 @@
 # binaries
-test
 vannes  
 
 # testing
 rom_src
-test*
-ram.dump
-vannes.log
-nestest.log
-vannes_nestest.txt
-*.log
-*.txt
+**/*test*
+**/*.txt
+**/*.log
+**/*.dump
 
 roms/*
+**/*.nes
+**/*.hex
 
 TODO.md
